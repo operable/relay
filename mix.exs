@@ -8,7 +8,8 @@ defmodule Relay.Mixfile do
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      elixirc_options: [warnings_as_errors: System.get_env("ALLOW_WARNINGS") == nil],
-     deps: deps]
+     deps: deps,
+     docs: docs]
   end
 
   def application do
@@ -17,6 +18,13 @@ defmodule Relay.Mixfile do
   end
 
   defp deps do
-    [{:emqttc, github: "emqtt/emqttc", branch: "master"}]
+    [{:earmark, "~> 0.1", only: :dev},
+     {:ex_doc, "~> 0.11", only: :dev},
+     {:emqttc, github: "emqtt/emqttc", branch: "master"},
+     {:enacl, github: "jlouis/enacl", tag: "0.14.0"}]
+  end
+
+  defp docs do
+    [logo: "images/operable_docs_logo.png"]
   end
 end
