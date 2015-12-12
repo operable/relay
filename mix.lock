@@ -7,4 +7,5 @@
   "getopt": {:git, "https://github.com/jcomellas/getopt.git", "626698975e63866156159661d100785d65eab6f9", [branch: "master"]},
   "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
   "lager": {:git, "git://github.com/basho/lager.git", "7177cb0737f4b9757a7b82d9ebf70e3684936434", [branch: "master"]},
-  "mix_test_watch": {:hex, :mix_test_watch, "0.2.4"}}
+  "mix_test_watch": {:hex, :mix_test_watch, "0.2.4"},
+  "poison": {:hex, :poison, "1.5.0"}}

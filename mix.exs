@@ -7,6 +7,7 @@ defmodule Relay.Mixfile do
      elixir: "~> 1.1",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     erlc_paths: ["lib/relay"],
      elixirc_options: [warnings_as_errors: System.get_env("ALLOW_WARNINGS") == nil],
      aliases: aliases,
      deps: deps,
@@ -23,7 +24,8 @@ defmodule Relay.Mixfile do
      {:ex_doc, "~> 0.11", only: :dev},
      {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
-     {:enacl, github: "jlouis/enacl", tag: "0.14.0"}]
+     {:enacl, github: "jlouis/enacl", tag: "0.14.0"},
+     {:poison, "~> 1.5.0"}]
   end
 
   defp docs do
