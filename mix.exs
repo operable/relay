@@ -8,6 +8,7 @@ defmodule Relay.Mixfile do
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      elixirc_options: [warnings_as_errors: System.get_env("ALLOW_WARNINGS") == nil],
+     aliases: aliases,
      deps: deps,
      docs: docs]
   end
@@ -25,6 +26,11 @@ defmodule Relay.Mixfile do
   end
 
   defp docs do
-    [logo: "images/operable_docs_logo.png"]
+    [logo: "images/operable_docs_logo.png",
+     extras: ["design/bot_shell_protocol.md": [title: "Cog Relay Protocol"]]]
+  end
+
+  defp aliases do
+    ["ci": ["docs"]]
   end
 end
