@@ -21,6 +21,7 @@ defmodule Relay.Mixfile do
   defp deps do
     [{:earmark, "~> 0.1", only: :dev},
      {:ex_doc, "~> 0.11", only: :dev},
+     {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
      {:enacl, github: "jlouis/enacl", tag: "0.14.0"}]
   end
