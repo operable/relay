@@ -8,7 +8,6 @@ defmodule Relay.Credentials do
   @private_key "relay_priv.key"
   @public_key "relay_pub.key"
   # 32 byte key w/64 byte checksum
-  @key_file_size 96
   @key_hash_size 64
 
   @doc "Validates the configured credential directory."
@@ -30,17 +29,18 @@ defmodule Relay.Credentials do
     else
       File.mkdir_p!(root)
       File.chmod(root, 0o700)
-      generate_keypair!(root)
+      keypair = generate_keypair()
+      write_key!(keypair.private, Path.join(root, @private_key))
+      write_key!(keypair.public, Path.join(root, @public_key))
+      keypair
     end
   end
 
   @doc "Generates a new private/public keypair"
-  @spec generate_keypair!(String.t()) :: [public: String.t(), private: String.t()]  | no_return()
-  def generate_keypair!(root) do
-    keys = :enacl.box_keypair()
-    priv_key_path = write_key!(keys.secret, Path.join(root, @private_key))
-    public_key_path = write_key!(keys.public, Path.join(root, @public_key))
-    [public: public_key_path, private: priv_key_path]
+  @spec generate_keypair() :: %__MODULE__{}
+  def generate_keypair() do
+    keys = :enacl.sign_keypair()
+    %__MODULE__{private: keys.secret, public: keys.public}
   end
 
   @spec read_keys!(String.t()) :: %__MODULE__{} | no_return()
@@ -53,17 +53,16 @@ defmodule Relay.Credentials do
   @spec validate_key!(String.t()) :: binary() | no_return()
   defp validate_key!(path) do
     stat = File.stat!(path)
-    if stat.size == @key_file_size do
-      ensure_correct_mode!(path, 0o100600)
-      raw_key = File.read!(path)
-      case verify_key_checksum(raw_key) do
-        :error ->
-          raise SecurityError.new("Key #{path} is corrupted. Please generate a new keypair.")
-        key ->
-          key
-      end
-    else
-      raise FileError.new("Expected file size for key #{path} is @key_file_size. Found #{stat.size} instead.")
+    if stat.size < @key_hash_size + 32 do
+      raise SecurityError.new("Key file #{path} is likely corrupted. Please generate a new keypair.")
+    end
+    ensure_correct_mode!(path, 0o100600)
+    raw_key = File.read!(path)
+    case verify_key_checksum(raw_key) do
+      :error ->
+        raise SecurityError.new("Key #{path} is corrupted. Please generate a new keypair.")
+      key ->
+        key
     end
   end
 

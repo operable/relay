@@ -33,12 +33,12 @@ defmodule Relay.CredentialsTest do
     assert error.message == "Path #{credentials_root} should have mode 40700 but has 40777 instead"
   end
 
-  test "pass when credentials dir has correct mode" do
+  test "fail when key files are missing" do
     credentials_root = temp_dir!
     File.mkdir_p!(credentials_root)
     File.chmod!(credentials_root, 0o700)
-    Credentials.generate_keypair!(credentials_root)
-    assert Credentials.validate_files!(credentials_root)
+    error = assert_raise(File.Error, fn -> Credentials.validate_files!(credentials_root) end)
+    assert error.reason == :enoent
   end
 
   test "fail when keys are corrupted" do
@@ -51,6 +51,15 @@ defmodule Relay.CredentialsTest do
     File.write!(priv_key_path, <<hash::binary, bad::binary, key::binary>>, [:write])
     error = assert_raise(Relay.SecurityError, fn -> Credentials.validate_files!(credentials_root) end)
     assert error.message == "Key #{priv_key_path} is corrupted. Please generate a new keypair."
+  end
+
+  test "fail when keys are undersized" do
+    credentials_root = temp_dir!
+    assert Credentials.validate_files!(credentials_root)
+    priv_key_path = Path.join(credentials_root, "relay_priv.key")
+    File.write!(priv_key_path, "A very bad key", [:write])
+    error = assert_raise(Relay.SecurityError, fn -> Credentials.validate_files!(credentials_root) end)
+    assert error.message == "Key file #{priv_key_path} is likely corrupted. Please generate a new keypair."
   end
 
   test "fail when keys have wrong mode" do
