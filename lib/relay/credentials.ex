@@ -15,8 +15,8 @@ defmodule Relay.Credentials do
   @doc "Validates the configured credential directory."
   @spec validate_files!() :: true | no_return()
   def validate_files!() do
-    {:ok, dir} = Application.get_env(:relay, :credentials_dir)
-    validate_files!(dir)
+    credentials_path = Application.get_env(:relay, :credentials_dir)
+    validate_files!(credentials_path)
   end
 
   @doc "Validates the directory structure and file permissions of credentials."
