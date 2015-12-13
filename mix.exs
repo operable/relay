@@ -8,6 +8,7 @@ defmodule Relay.Mixfile do
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      erlc_paths: ["lib/relay"],
+     elixirc_paths: elixirc_paths(Mix.env),
      elixirc_options: [warnings_as_errors: System.get_env("ALLOW_WARNINGS") == nil],
      aliases: aliases,
      deps: deps,
@@ -38,4 +39,9 @@ defmodule Relay.Mixfile do
   defp aliases do
     ["ci": ["docs"]]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_),     do: ["lib"]
+
 end

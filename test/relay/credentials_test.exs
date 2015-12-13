@@ -3,12 +3,7 @@ defmodule Relay.CredentialsTest do
   alias Relay.Credentials
 
   use ExUnit.Case
-
-  defp temp_dir!() do
-    path = System.tmp_dir!
-    File.rm_rf!(path)
-    path
-  end
+  use Relay.Test.IO
 
   defp perturb(v) when is_binary(v) do
     <<value::integer>> = v
