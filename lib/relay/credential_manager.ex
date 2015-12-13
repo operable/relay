@@ -1,7 +1,7 @@
 defmodule Relay.CredentialManager do
 
   use GenServer
-  require Logger
+  use Relay.Logging
 
   alias Relay.Credentials
 
@@ -22,7 +22,7 @@ defmodule Relay.CredentialManager do
     try do
       credentials = Credentials.validate_files!
       store_credentials(credentials)
-      {:ok, nil}
+      ready({:ok, nil})
     rescue
       e in [Relay.SecurityError] ->
         Logger.error("#{e.message}")
