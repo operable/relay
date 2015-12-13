@@ -7,7 +7,8 @@ defmodule Relay.TopSupervisor do
   end
 
   def init(_) do
-    children = [worker(Relay.CredentialManager, [])]
+    children = [worker(Relay.CredentialManager, []),
+                supervisor(Relay.Bundle.BundleSup, [])]
     supervise(children, strategy: :one_for_one)
   end
 
