@@ -1,6 +1,7 @@
 defmodule Relay.Signature do
 
   alias Relay.Credentials
+  alias Relay.Util
 
   @doc "Signs a JSON object using `Relay.Credentials`"
   @spec sign(Map.t(), Credentials.t()) :: Dict.t() | no_return()
@@ -13,14 +14,14 @@ defmodule Relay.Signature do
   def sign(obj, key) when is_map(obj) do
     text = encode!(obj)
     sig = :enacl.sign_detached(text, key)
-    sig = :relay_hex.to_string(sig)
+    sig = Util.binary_to_hex_string(sig)
     %{data: obj, signature: sig}
   end
 
   @doc "Verify JSON object signature"
   @spec verify(Map.t(), binary()) :: boolean() | no_return()
   def verify(%{data: obj, signature: sig}, key) when is_map(obj) do
-    sig = :relay_hex.to_binary(sig)
+    sig = Util.hex_string_to_binary(sig)
     text = encode!(obj)
     case :enacl.sign_verify_detached(sig, text, key) do
       {:ok, ^text} ->

@@ -25,7 +25,8 @@ defmodule Relay.Mixfile do
      {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
      {:enacl, github: "jlouis/enacl", tag: "0.14.0"},
-     {:poison, "~> 1.5.0"}]
+     {:poison, "~> 1.5.0"},
+     {:uuid, "~> 1.0.1"}]
   end
 
   defp docs do

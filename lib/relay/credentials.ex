@@ -3,10 +3,12 @@ defmodule Relay.Credentials do
   alias Relay.FileError
   alias Relay.Util
 
-  defstruct [:private, :public]
+  defstruct [:id, :private, :public]
 
   @private_key "relay_priv.key"
   @public_key "relay_pub.key"
+  @relay_id "relay.id"
+
   # 32 byte key w/64 byte checksum
   @key_hash_size 64
 
@@ -22,63 +24,75 @@ defmodule Relay.Credentials do
     if File.exists?(root) do
       if File.dir?(root) do
         ensure_correct_mode!(root, 0o40700)
-        read_keys!(root)
+        read_credentials!(root)
       else
         raise FileError.new("Path #{root} is not a directory")
       end
     else
-      File.mkdir_p!(root)
-      File.chmod(root, 0o700)
-      keypair = generate_keypair()
-      write_key!(keypair.private, Path.join(root, @private_key))
-      write_key!(keypair.public, Path.join(root, @public_key))
-      keypair
+      configure_credentials!(root)
     end
   end
 
   @doc "Generates a new private/public keypair"
-  @spec generate_keypair() :: %__MODULE__{}
-  def generate_keypair() do
+  @spec generate_credentials() :: %__MODULE__{}
+  def generate_credentials() do
     keys = :enacl.sign_keypair()
-    %__MODULE__{private: keys.secret, public: keys.public}
+    %__MODULE__{id: UUID.uuid4(), private: keys.secret, public: keys.public}
   end
 
-  @spec read_keys!(String.t()) :: %__MODULE__{} | no_return()
-  defp read_keys!(root) do
-    priv_key = validate_key!(Path.join(root, @private_key))
-    pub_key = validate_key!(Path.join(root, @public_key))
-    %__MODULE__{private: priv_key, public: pub_key}
+  @spec configure_credentials!(String.t()) :: %__MODULE__{} | no_return
+  defp configure_credentials!(root) do
+    File.mkdir_p!(root)
+    File.chmod(root, 0o700)
+    credentials = generate_credentials()
+    write_credentials!(root, credentials)
   end
 
-  @spec validate_key!(String.t()) :: binary() | no_return()
-  defp validate_key!(path) do
+  @spec read_credentials!(String.t()) :: %__MODULE__{} | no_return()
+  defp read_credentials!(root) do
+    priv_key = read_data_checksum!(Path.join(root, @private_key))
+    pub_key = read_data_checksum!(Path.join(root, @public_key))
+    id = read_data_checksum!(Path.join(root, @relay_id))
+    %__MODULE__{private: priv_key, public: pub_key, id: id}
+  end
+
+  @spec read_data_checksum!(String.t()) :: binary() | no_return()
+  defp read_data_checksum!(path) do
     stat = File.stat!(path)
     if stat.size < @key_hash_size + 32 do
-      raise SecurityError.new("Key file #{path} is likely corrupted. Please generate a new keypair.")
+      raise SecurityError.new("Credential file #{path} is corrupted. Please generate a new credential set.")
     end
     ensure_correct_mode!(path, 0o100600)
-    raw_key = File.read!(path)
-    case verify_key_checksum(raw_key) do
+    raw_data = File.read!(path)
+    case verify_data_checksum(raw_data) do
       :error ->
-        raise SecurityError.new("Key #{path} is corrupted. Please generate a new keypair.")
+        raise SecurityError.new("Credential file #{path} is corrupted. Please generate a new credential set.")
       key ->
         key
     end
   end
 
-  @spec verify_key_checksum(binary()) :: binary() | :error
-  defp verify_key_checksum(raw_key) do
-    <<hash::binary-size(@key_hash_size), key::binary>> = raw_key
-    if :enacl.hash(key) == hash do
-      key
+  @spec verify_data_checksum(binary()) :: binary() | :error
+  defp verify_data_checksum(raw_data) do
+    <<hash::binary-size(@key_hash_size), data::binary>> = raw_data
+    if :enacl.hash(data) == hash do
+      data
     else
       :error
     end
   end
 
-  @spec write_key!(binary(), String.t()) :: String.t() | no_return()
-  defp write_key!(key, path) do
-    contents = :erlang.list_to_binary([:enacl.hash(key), key])
+  @spec write_credentials!(String.t(), %__MODULE__{}) :: %__MODULE__{} | no_return()
+  defp write_credentials!(root, credentials) do
+    write_data_checksum!(credentials.public, Path.join(root, @public_key))
+    write_data_checksum!(credentials.private, Path.join(root, @private_key))
+    write_data_checksum!(credentials.id, Path.join(root, @relay_id))
+    credentials
+  end
+
+  @spec write_data_checksum!(binary(), String.t()) :: String.t() | no_return()
+  defp write_data_checksum!(data, path) do
+    contents = :erlang.list_to_binary([:enacl.hash(data), data])
     File.write!(path, contents)
     File.chmod!(path, 0o600)
     path

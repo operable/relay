@@ -5,8 +5,8 @@ defmodule Relay.SignatureTest do
   use ExUnit.Case
 
   setup_all do
-    {:ok, %{creds: Relay.Credentials.generate_keypair,
-            other_creds: Relay.Credentials.generate_keypair}}
+    {:ok, %{creds: Relay.Credentials.generate_credentials(),
+            other_creds: Relay.Credentials.generate_credentials()}}
   end
 
   defmacrop verify_signature_envelope(signed, original) do

@@ -50,7 +50,7 @@ defmodule Relay.CredentialsTest do
     bad = perturb(bad)
     File.write!(priv_key_path, <<hash::binary, bad::binary, key::binary>>, [:write])
     error = assert_raise(Relay.SecurityError, fn -> Credentials.validate_files!(credentials_root) end)
-    assert error.message == "Key #{priv_key_path} is corrupted. Please generate a new keypair."
+    assert error.message == "Credential file #{priv_key_path} is corrupted. Please generate a new credential set."
   end
 
   test "fail when keys are undersized" do
@@ -59,7 +59,7 @@ defmodule Relay.CredentialsTest do
     priv_key_path = Path.join(credentials_root, "relay_priv.key")
     File.write!(priv_key_path, "A very bad key", [:write])
     error = assert_raise(Relay.SecurityError, fn -> Credentials.validate_files!(credentials_root) end)
-    assert error.message == "Key file #{priv_key_path} is likely corrupted. Please generate a new keypair."
+    assert error.message == "Credential file #{priv_key_path} is corrupted. Please generate a new credential set."
   end
 
   test "fail when keys have wrong mode" do
