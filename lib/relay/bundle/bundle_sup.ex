@@ -1,7 +1,6 @@
 defmodule Relay.Bundle.BundleSup do
   @moduledoc """
-  Root supervisor for all bundles of commands and services running in
-  the bot.
+  Root supervisor for all bundles of commands running in a Relay.
   """
 
   use Supervisor

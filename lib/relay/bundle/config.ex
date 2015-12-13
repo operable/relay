@@ -8,7 +8,6 @@ defmodule Relay.Bundle.Config do
   - A list of all commands in the bundle, including the command's
     invocation name, the Elixir module that implements it, the various
     options the command may take, and the command's version
-  - A list of services in the bundle
   - A list of permissions the bundle will create
   - A list of initial rules for the commands in the bundle, using the
     bundle permissions.
@@ -59,7 +58,6 @@ defmodule Relay.Bundle.Config do
                      name: "stackoverflow",
                      options: [],
                      version: "0.0.1"},
-        services: [],
         permissions: ["foo:admin", "foo:read", "foo:write"],
         rules: ["when command is foo:add-rule must have foo:admin",
                 "when command is foo:grant must have foo:admin"]}
@@ -70,10 +68,8 @@ defmodule Relay.Bundle.Config do
 
   require Logger
   alias Relay.GenCommand
-  alias Relay.GenService
 
   def commands(config), do: modules(config, "commands")
-  def services(config), do: modules(config, "services")
 
   # TODO: Scope these to avoid conflicts with pre-existing modules
   def modules(config, type) do
@@ -90,8 +86,8 @@ defmodule Relay.Bundle.Config do
 
   - `name`: the name of the bundle
   - `modules`: a list of modules to be included in the bundle. This
-    really only needs to be the modules implementing either Commands
-    or Services, since all modules in the project are currently
+    really only needs to be the modules implementing Commands
+    since all modules in the project are currently
     packaged up. If it is all modules in the project, though, that's
     fine, since the lists get filtered as appropriate.
 
@@ -102,7 +98,6 @@ defmodule Relay.Bundle.Config do
     # those maps together.
     Enum.reduce([gen_bundle(name),
                  gen_commands(modules),
-                 gen_services(modules),
                  gen_permissions(name, modules),
                  gen_rules(modules)],
                 &Map.merge/2)
@@ -146,11 +141,6 @@ defmodule Relay.Bundle.Config do
     %{"commands" => Enum.map(only_commands(modules), &command_map/1)}
   end
 
-  # Extract all services from `modules` and generate configuration
-  # maps for them
-  defp gen_services(modules),
-    do: %{"services" => Enum.filter_map(modules, &GenService.is_service?/1, &service_map/1)}
-
   defp only_commands(modules),
     do: Enum.filter(modules, &GenCommand.is_command?/1)
 
@@ -173,11 +163,6 @@ defmodule Relay.Bundle.Config do
                              nil
                          end,
         "module" => inspect(module)}
-  end
-
-  defp service_map(module) do
-    %{"name" => module.name,
-      "module" => inspect(module)}
   end
 
   defp version(module) do

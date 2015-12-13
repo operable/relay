@@ -1,10 +1,10 @@
 defmodule Relay.Bundle.BundleCatalog do
   @moduledoc """
-  Supervisor for all bundles of commands and services managed by the
-  bot. Each child process is itself a supervisor of a single bundle.
+  Supervisor for all bundles of commands managed by a Relay instance.
+  Each child process is itself a supervisor of a single bundle.
 
-  This supervisor is a simple one-for-one, as bundles of commands and
-  services may be added to a running system at any time.
+  This supervisor is a simple one-for-one, as bundles may be added to
+  a running system at any time.
 
   """
 
