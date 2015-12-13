@@ -10,7 +10,7 @@ defmodule Relay.Logging do
   defmacro ready(value) do
     caller = __CALLER__.module
     quote bind_quoted: [caller: caller, value: value] do
-      Logger.info("#{caller} ready...")
+      Logger.info("#{caller} ready.")
       value
     end
   end
