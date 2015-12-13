@@ -48,32 +48,18 @@ defmodule Relay.Messaging.Connection do
   end
 
   @doc """
-  Sign and publish a JSON object to the message bus.
-
-  ## Keyword arguments
-
-    * `:routed_by` - the topic on which to publish `object`. Required.
-  """
-  def sign_and_publish(conn, object, key, kw_args) when is_map(object) do
-    signed = Signature.sign(object, key)
-    publish(conn, Poison.encode!(signed), kw_args)
-  end
-
-  @doc """
-  Publish a message to the message bus.
+  Publish a JSON object to the message bus. The object will be
+  signed with the system key.
 
   ## Keyword Arguments
 
     * `:routed_by` - the topic on which to publish `message`. Required.
 
-  ## Example
-
-      publish(conn, "hello world", routed_by: "/really/interesting/stuff")
-
   """
-  def publish(conn, message, kw_args) do
+  def publish(conn, message, kw_args) when is_map(message) do
+    signed = Signature.sign(message)
     topic = Keyword.fetch!(kw_args, :routed_by)
-    :emqttc.publish(conn, topic, message)
+    :emqttc.publish(conn, topic, Poison.encode!(signed))
   end
 
   defp add_system_config(opts) do
