@@ -1,5 +1,9 @@
 use Mix.Config
 
+config :logger, :console,
+  metadata: [:module, :line],
+  format: {Relay.Logging, :format}
+
 config :relay, credentials_dir: "/tmp/relay_#{Mix.env}/credentials"
 
 config :relay, Relay.Messaging.Connection,
@@ -8,5 +12,6 @@ config :relay, Relay.Messaging.Connection,
   log_level: :info
 
 config :relay, bundle_root: Path.join([File.cwd!, "bundles"])
-config :relay, bundle_upload_root: Path.join([File.cwd!, "bundle_uploads"])
+config :relay, pending_bundle_root: Path.join([File.cwd!, "pending"])
+config :relay, triage_bundle_root: Path.join([File.cwd!, "failed"])
 config :relay, bundle_scan_interval_secs: 30
