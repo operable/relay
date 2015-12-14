@@ -20,6 +20,18 @@ defmodule Relay.Bundle.BundleCatalog do
     GenServer.call(__MODULE__, {:installed, bundle_name}, :infinity)
   end
 
+  def install(bundle_name, commands) do
+    GenServer.call(__MODULE__, {:install, bundle_name, commands}, :infinity)
+  end
+
+  def list_bundles() do
+    GenServer.call(__MODULE__, :list_bundles, :infinity)
+  end
+
+  def list_commands(bundle_name) do
+    GenServer.call(__MODULE__, {:list_commands, bundle_name}, :infinity)
+  end
+
   def init(_) do
     bundle_root = Application.get_env(:relay, :bundle_root)
     if not(File.exists?(bundle_root)) do
@@ -29,6 +41,26 @@ defmodule Relay.Bundle.BundleCatalog do
     end
   end
 
+  def handle_call(:list_bundles, _from, %__MODULE__{db: db}=state) do
+    {:reply, all_keys(db), state}
+  end
+  def handle_call({:list_commands, bundle_name}, _from, %__MODULE__{db: db}=state) do
+    case :dets.lookup(db, bundle_name) do
+      [{^bundle_name, commands}] ->
+        {:reply, commands, state}
+      [] ->
+        {:reply, [], state}
+    end
+  end
+  def handle_call({:install, bundle_name, commands}, _from, %__MODULE__{db: db}=state) do
+    case :dets.insert(db, {bundle_name, commands}) do
+      :ok ->
+        {:reply, :ok, state}
+      error ->
+        Logger.error("Error registering bundle #{bundle_name}: #{inspect error}")
+        {:reply, error, state}
+    end
+  end
   def handle_call({:installed, bundle_name}, _from, %__MODULE__{db: db}=state) do
     reply = case :dets.lookup(db, bundle_name) do
               [] ->
@@ -101,4 +133,14 @@ defmodule Relay.Bundle.BundleCatalog do
     "catalog_#{@db_version}.db"
   end
 
+  defp all_keys(db) do
+    all_keys(db, :dets.first(db), [])
+  end
+
+  defp all_keys(_db, :"$end_of_table", accum) do
+    Enum.reverse(accum)
+  end
+  defp all_keys(db, key, accum) do
+    all_keys(db, :dets.next(db, key), [key|accum])
+  end
 end
