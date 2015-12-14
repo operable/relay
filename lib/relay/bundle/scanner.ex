@@ -4,6 +4,7 @@ defmodule Relay.Bundle.Scanner do
   use Relay.Logging
 
   alias Relay.BundleFile
+  alias Relay.Bundle.BundleCatalog
 
   defstruct [:pending_path, :timer]
 
@@ -109,8 +110,14 @@ defmodule Relay.Bundle.Scanner do
   defp activate_bundle({:ok, bf}) do
     case BundleFile.unlock(bf) do
       {:ok, bf} ->
-        BundleFile.close(bf)
-        {:ok, bf.installed_path}
+        case register_bundle(bf) do
+          :ok ->
+            BundleFile.close(bf)
+            {:ok, bf.installed_path}
+          error ->
+            Logger.error("Error registering bundle #{bf.path}: #{inspect error}")
+            cleanup_failed_activation(bf)
+        end
       error ->
         Logger.error("Error unlocking bundle #{bf.path}: #{inspect error}")
         cleanup_failed_activation(bf)
@@ -119,6 +126,23 @@ defmodule Relay.Bundle.Scanner do
   defp activate_bundle({error, bf}) do
     Logger.error("Error activating bundle #{bf.path}: #{inspect error}")
     cleanup_failed_activation(bf)
+  end
+
+  defp register_bundle(bf) do
+    {:ok, config} = BundleFile.config(bf)
+    bundle = Map.fetch!(config, "bundle")
+    bundle_name = Map.fetch!(bundle, "name")
+    commands = for command <- Map.fetch!(config, "commands") do
+      name = Map.fetch!(command, "name")
+      module = Map.fetch!(command, "module")
+      {name, String.to_atom(module)}
+    end
+    case BundleCatalog.install(bundle_name, commands) do
+      :ok ->
+        :ok
+      error ->
+        error
+    end
   end
 
   defp cleanup_failed_activation(bf) do
