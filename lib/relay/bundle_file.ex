@@ -11,7 +11,7 @@ structure, unlocking and expanding bundle files on disk.
   Record.defrecord(:file_info, Record.extract(:file_info, from_lib: "kernel/include/file.hrl"))
   Record.defrecord(:zip_file, Record.extract(:zip_file, from_lib: "stdlib/include/zip.hrl"))
 
-  defstruct [:name, :path, :fd]
+  defstruct [:name, :path, :fd, :installed_path]
 
   @zip_options [:cooked, :memory]
 
@@ -21,12 +21,19 @@ structure, unlocking and expanding bundle files on disk.
     name = path
     |> Path.basename
     |> String.replace(~r/.loop$/, "")
+    |> String.replace(~r/.loop.locked$/, "")
     case :zip.zip_open(cl(path), @zip_options) do
       {:ok, fd} ->
         {:ok, %__MODULE__{path: path, fd: fd, name: name}}
       error ->
         error
     end
+  end
+
+  @doc "Sets the bundle's installed path. Purely informational."
+  @spec installed_path(%__MODULE__{}, String.t()) :: %__MODULE__{}
+  def installed_path(%__MODULE__{}=bf, path) do
+    %{bf | installed_path: path}
   end
 
   @doc "Extracts and parses `manifest.json`."
@@ -57,7 +64,7 @@ overwrite an existing file. To force overwriting use `overwrite: true` as the
 second argument.
   """
   @spec unlock(%__MODULE__{}, [] | [overwrite: boolean()]) :: {:ok, %__MODULE__{}} | {:error, term()}
-  def unlock(%__MODULE__{fd: fd, path: path}, opts \\ [overwrite: false]) do
+  def unlock(%__MODULE__{fd: fd, path: path}=bf, opts \\ [overwrite: false]) do
     case String.replace(path, ~r/\.locked$/, "") do
       ^path ->
         {:error, :not_locked}
@@ -69,7 +76,7 @@ second argument.
               :ok ->
                 case :zip.zip_open(cl(unlocked_path), @zip_options) do
                   {:ok, fd} ->
-                    {:ok, %__MODULE__{path: unlocked_path, fd: fd}}
+                    {:ok, %{bf | path: unlocked_path, fd: fd}}
                   error ->
                     error
                 end
@@ -92,6 +99,18 @@ second argument.
   @spec list_files(%__MODULE__{}) :: [String.t()]
   def list_files(%__MODULE__{}=bundle) do
     list_paths(bundle, :regular)
+  end
+
+  @doc "Expands a bundle into the target directory"
+  @spec expand_into(%__MODULE__{}, String.t()) :: :ok | {:error, term()}
+  def expand_into(%__MODULE__{path: path}, target_dir) do
+    File.mkdir_p!(target_dir)
+    case :zip.unzip(cl(path), [{:cwd, cl(target_dir)}]) do
+      {:ok, _} ->
+        :ok
+      error ->
+        error
+    end
   end
 
   @doc "Closes all file handles associated with the bundle."
