@@ -1,5 +1,11 @@
 defmodule Relay.BundleFile do
 
+  @moduledoc """
+This module models a command bundle file. It provides functions for
+extracting `config.json` and `manifest.json`, validating bundle file
+structure, unlocking and expanding bundle files on disk.
+  """
+
   require Record
 
   Record.defrecord(:file_info, Record.extract(:file_info, from_lib: "kernel/include/file.hrl"))
@@ -9,6 +15,8 @@ defmodule Relay.BundleFile do
 
   @zip_options [:cooked, :memory]
 
+  @doc "Opens a bundle file."
+  @spec open(String.t()) :: {:ok, %__MODULE__{}} | {:error, term()}
   def open(path) do
     name = path
     |> Path.basename
@@ -21,33 +29,50 @@ defmodule Relay.BundleFile do
     end
   end
 
+  @doc "Extracts and parses `manifest.json`."
+  @spec manifest(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def manifest(%__MODULE__{fd: fd, name: name}) do
     path = zip_path(name, "manifest.json")
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
     Poison.decode(result)
   end
 
+  @doc "Extracts and parses `config.json`."
+  @spec config(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def config(%__MODULE__{fd: fd, name: name}) do
     path = zip_path(name, "config.json")
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
     Poison.decode(result)
   end
 
+  @doc "Returns bundle's lock status."
+  @spec is_locked?(%__MODULE__{}) :: boolean()
   def is_locked?(%__MODULE__{path: path}) do
     String.ends_with?(path, ".locked")
   end
 
-  def unlock(%__MODULE__{fd: fd, path: path}) do
+  @doc """
+Unlocks a locked bundle file. Defaults to failing if unlocking the bundle would
+overwrite an existing file. To force overwriting use `overwrite: true` as the
+second argument.
+  """
+  @spec unlock(%__MODULE__{}, [] | [overwrite: boolean()]) :: {:ok, %__MODULE__{}} | {:error, term()}
+  def unlock(%__MODULE__{fd: fd, path: path}, opts \\ [overwrite: false]) do
     case String.replace(path, ~r/\.locked$/, "") do
       ^path ->
         {:error, :not_locked}
       unlocked_path ->
-        :zip.zip_close(fd)
-        case File.rename(path, unlocked_path) do
+        case continue_renaming?(unlocked_path, opts) do
           :ok ->
-            case :zip.zip_open(cl(unlocked_path), @zip_options) do
-              {:ok, fd} ->
-                {:ok, %__MODULE__{path: unlocked_path, fd: fd}}
+            :zip.zip_close(fd)
+            case File.rename(path, unlocked_path) do
+              :ok ->
+                case :zip.zip_open(cl(unlocked_path), @zip_options) do
+                  {:ok, fd} ->
+                    {:ok, %__MODULE__{path: unlocked_path, fd: fd}}
+                  error ->
+                    error
+                end
               error ->
                 error
             end
@@ -57,17 +82,46 @@ defmodule Relay.BundleFile do
     end
   end
 
-  def list_dirs(%__MODULE__{}=bf) do
-    list_paths(bf, :directory)
+  @doc "Lists all unique directories contained in the bundle."
+  @spec list_dirs(%__MODULE__{}) :: [String.t()]
+  def list_dirs(%__MODULE__{}=bundle) do
+    list_paths(bundle, :directory)
   end
 
-  def list_files(%__MODULE__{}=bf) do
-    list_paths(bf, :regular)
+  @doc "Lists all files contained in the bundle."
+  @spec list_files(%__MODULE__{}) :: [String.t()]
+  def list_files(%__MODULE__{}=bundle) do
+    list_paths(bundle, :regular)
   end
 
+  @doc "Closes all file handles associated with the bundle."
+  @spec close(%__MODULE__{}) :: :ok
   def close(%__MODULE__{}=file) do
     :zip.zip_close(file.fd)
     :ok
+  end
+
+  defp continue_renaming?(unlocked_path, [overwrite: false]) do
+    case File.exists?(unlocked_path) do
+      true ->
+        {:error, :unlocked_bundle_exists}
+      false ->
+        :ok
+    end
+  end
+  defp continue_renaming?(unlocked_path, [overwrite: true]) do
+    case File.exists?(unlocked_path) do
+      true ->
+        case File.regular?(unlocked_path) do
+          true ->
+            File.rm!(unlocked_path)
+            :ok
+          false ->
+            {:error, :bad_unlocked_bundle_file}
+        end
+      false ->
+        :ok
+    end
   end
 
   defp list_paths(%__MODULE__{fd: fd}, type) do

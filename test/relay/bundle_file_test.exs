@@ -6,6 +6,7 @@ defmodule Relay.BundleFileTest do
   use Relay.Test.IO
 
   @test_bundle "github.loop"
+  @locked_test_bundle "github.loop.locked"
 
   defp asset_dir() do
     Path.join([File.cwd!, "test", "assets"])
@@ -33,9 +34,12 @@ defmodule Relay.BundleFileTest do
     File.mkdir_p!(dir)
     asset_path = Path.join(asset_dir, @test_bundle)
     test_bundle_path = Path.join(dir, @test_bundle)
+    locked_bundle_path = Path.join(dir, @locked_test_bundle)
     File.cp!(asset_path, test_bundle_path)
+    File.cp!(asset_path, locked_bundle_path)
     {:ok, %{dir: dir,
-            test_bundle_path: test_bundle_path}}
+            test_bundle_path: test_bundle_path,
+            locked_bundle_path: locked_bundle_path}}
   end
 
   test "open and close bundle file", context do
@@ -71,6 +75,36 @@ defmodule Relay.BundleFileTest do
     {:ok, config} = BundleFile.config(bf)
     assert is_map(config)
     assert BundleFile.close(bf) == :ok
+  end
+
+  test "detects locked bundle", context do
+    {:ok, bf} = BundleFile.open(context.locked_bundle_path)
+    assert BundleFile.is_locked?(bf)
+    assert BundleFile.close(bf) == :ok
+  end
+
+  test "unlocks bundle", context do
+    File.rm!(context.test_bundle_path)
+    {:ok, bf} = BundleFile.open(context.locked_bundle_path)
+    assert BundleFile.is_locked?(bf)
+    {:ok, bf} = BundleFile.unlock(bf)
+    refute BundleFile.is_locked?(bf)
+    assert bf.path == context.test_bundle_path
+  end
+
+  test "unlocking bundle defaults to not overwriting", context do
+    {:ok, bf} = BundleFile.open(context.locked_bundle_path)
+    assert BundleFile.is_locked?(bf)
+    assert BundleFile.unlock(bf) == {:error, :unlocked_bundle_exists}
+    assert BundleFile.close(bf)
+  end
+
+  test "unlocking bundle w/overwrite succeeds", context do
+    {:ok, bf} = BundleFile.open(context.locked_bundle_path)
+    assert BundleFile.is_locked?(bf)
+    {:ok, bf} = BundleFile.unlock(bf, overwrite: true)
+    refute BundleFile.is_locked?(bf)
+    assert BundleFile.close(bf)
   end
 
 end
