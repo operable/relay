@@ -3,21 +3,35 @@ defmodule Relay.Bundle.Scanner do
   use GenServer
   use Relay.Logging
 
-  defstruct [:upload_path, :timer]
+  alias Relay.BundleFile
+
+  defstruct [:pending_path, :timer]
 
   @bundle_suffix ".loop"
 
   def start_link(),
-  do: GenServer.start_link(__MODULE__, name: __MODULE__)
+  do: GenServer.start_link(__MODULE__, [], name: __MODULE__)
+
+  def start_scanning() do
+    GenServer.cast(__MODULE__, :start_scanning)
+  end
 
   def init(_) do
-    upload_path = Application.get_env(:relay, :bundle_upload_root)
-    case File.exists?(upload_path) do
+    pending_path = Application.get_env(:relay, :pending_bundle_root)
+    case File.exists?(pending_path) do
       false ->
-        prepare_for_uploads(upload_path)
+        prepare_for_uploads(pending_path)
       true ->
-        scan_for_uploads(upload_path)
+        scan_for_uploads(pending_path)
     end
+  end
+
+  def handle_cast(:start_scanning, state) do
+    send(self(), :scan)
+    {:noreply, state}
+  end
+  def handle_cast(_, state) do
+    {:noreply, state}
   end
 
   def handle_info(:scan, state) do
@@ -29,39 +43,26 @@ defmodule Relay.Bundle.Scanner do
     {:noreply, state}
   end
 
-  defp prepare_for_uploads(upload_path) do
-    File.mkdir_p!(upload_path)
-    ready(finish_init(%__MODULE__{upload_path: upload_path}))
+  defp prepare_for_uploads(pending_path) do
+    File.mkdir_p!(pending_path)
+    ready({:ok, %__MODULE__{pending_path: pending_path}})
   end
 
-  defp scan_for_uploads(upload_path) do
-    case File.dir?(upload_path) do
+  defp scan_for_uploads(pending_path) do
+    case File.dir?(pending_path) do
       false ->
-        Logger.error("Error starting bundle scanner: Upload path #{upload_path} is not a directory")
-        {:error, :bad_upload_path}
+        Logger.error("Error starting bundle scanner: Upload path #{pending_path} is not a directory")
+        {:error, :bad_pending_path}
       true ->
         case pending_bundle_files() do
           [] ->
-            Logger.info("No bundle uploads pending")
-            ready(finish_init(%__MODULE__{upload_path: upload_path}))
-          bundles ->
-            if length(bundles) == 1 do
-              Logger.info("Found #{length(bundles)} pending bundle upload. Installation will begin in 10 seconds.")
-            else
-              Logger.info("Found #{length(bundles)} pending bundle uploads. Installation will begin in 10 seconds.")
-            end
-            ready(finish_init(10, %__MODULE__{upload_path: upload_path}))
+            Logger.info("No pending bundles found.")
+            ready({:ok, %__MODULE__{pending_path: pending_path}})
+          _bundles ->
+            Logger.info("Pending bundles will be installed shortly.")
+            ready({:ok, %__MODULE__{pending_path: pending_path}})
         end
     end
-  end
-
-  defp finish_init(state) do
-    finish_init(scan_interval(), state)
-  end
-
-  defp finish_init(wait, state) do
-    {:ok, timer} = :timer.send_after((wait * 1000), :scan)
-    {:ok, %{state | timer: timer}}
   end
 
   defp scan_interval() do
@@ -69,8 +70,8 @@ defmodule Relay.Bundle.Scanner do
   end
 
   defp pending_bundle_files() do
-    upload_path = Application.get_env(:relay, :bundle_upload_root)
-    Path.wildcard(Path.join(upload_path, "*#{@bundle_suffix}"))
+    pending_path = Application.get_env(:relay, :pending_bundle_root)
+    Path.wildcard(Path.join(pending_path, "*#{@bundle_suffix}"))
   end
 
   defp install_bundles([]) do
@@ -81,21 +82,104 @@ defmodule Relay.Bundle.Scanner do
     install_bundles(t)
   end
 
-  defp install_bundle(_bundle_path) do
-    :ok
+  defp install_bundle(bundle_path) do
+    Logger.info("Installing bundle #{bundle_path}.")
+    case lock_bundle(bundle_path) do
+      {:ok, locked_path} ->
+        case activate_bundle(locked_path) do
+          {:ok, installed_path} ->
+            Logger.info("Bundle #{bundle_path} installed to #{installed_path} successfully.")
+          _error ->
+            Logger.info("Installation of bundle #{bundle_path} failed.")
+        end
+      error ->
+        error
+    end
   end
 
-  # defp lock_bundle(bundle_path) do
-  #   bundle_root = Application.get_env(:relay, :bundle_root)
-  #   locked_file = Path.basename(bundle_path) <> ".locked"
-  #   locked_path = Path.join(bundle_root, bundle_file)
-  #   case File.rename(bundle_path, locked_path) do
-  #     :ok ->
-  #       {:ok, locked_path}
-  #     error ->
-  #       Logger.error("Error locking uploaded bundle #{bundle_path}: #{inspect error}")
-  #       error
-  #   end
-  # end
+  defp activate_bundle(path) when is_binary(path) do
+    case BundleFile.open(path) do
+      {:ok, bf} ->
+        activate_bundle(expand_bundle(bf))
+      error ->
+        Logger.error("Error opening locked bundle #{path}: #{inspect error}")
+        error
+    end
+  end
+  defp activate_bundle({:ok, bf}) do
+    case BundleFile.unlock(bf) do
+      {:ok, bf} ->
+        BundleFile.close(bf)
+        {:ok, bf.installed_path}
+      error ->
+        Logger.error("Error unlocking bundle #{bf.path}: #{inspect error}")
+        cleanup_failed_activation(bf)
+    end
+  end
+  defp activate_bundle({error, bf}) do
+    Logger.error("Error activating bundle #{bf.path}: #{inspect error}")
+    cleanup_failed_activation(bf)
+  end
+
+  defp cleanup_failed_activation(bf) do
+    install_dir = build_install_dir(bf)
+    File.rm_rf(install_dir)
+    triaged_path = build_triaged_path(bf)
+    BundleFile.close(bf)
+    File.rm(triaged_path)
+    Logger.info("Triaging failed bundle to #{triaged_path}")
+    File.rename(bf.path, triaged_path)
+  end
+
+  defp expand_bundle(bf) do
+    install_dir = build_install_dir(bf)
+    case File.exists?(install_dir) do
+      # Bail here because we're already installed
+      true ->
+        {:ok, bf}
+      false ->
+        File.mkdir_p!(install_dir)
+        case BundleFile.expand_into(bf, install_dir) do
+          :ok ->
+            {:ok, BundleFile.installed_path(bf, install_dir)}
+          error ->
+            {error, bf}
+        end
+    end
+  end
+
+  defp build_triaged_path(bf) do
+    triage_root = Application.get_env(:relay, :triage_bundle_root)
+    File.mkdir_p(triage_root)
+    bundle_file_name = Path.basename(bf.path)
+    |> String.replace(~r/.locked$/, "")
+    Path.join(triage_root, bundle_file_name)
+  end
+
+  defp build_install_dir(bf) do
+    {:ok, config} = BundleFile.config(bf)
+    bundle = Map.fetch!(config, "bundle")
+    name = Map.fetch!(bundle, "name")
+    Path.join([Path.dirname(bf.path), name])
+  end
+
+  defp lock_bundle(bundle_path) do
+    bundle_root = Application.get_env(:relay, :bundle_root)
+    locked_file = Path.basename(bundle_path) <> ".locked"
+    locked_path = Path.join(bundle_root, locked_file)
+    case File.regular?(locked_path) do
+      true ->
+        Logger.error("Error locking bundle #{bundle_path}: Locked bundle #{locked_path} already exists")
+        {:error, :locked_bundle_exists}
+      false ->
+        case File.rename(bundle_path, locked_path) do
+          :ok ->
+            {:ok, locked_path}
+          error ->
+            Logger.error("Error locking bundle #{bundle_path}: #{inspect error}")
+            error
+        end
+    end
+  end
 
 end
