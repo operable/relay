@@ -1,4 +1,4 @@
-defmodule Relay.Bundle.BundleCatalog do
+defmodule Relay.Bundle.Catalog do
   @moduledoc """
   Maintains the canonical record of deploy bundles for a given
   Relay container.

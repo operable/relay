@@ -4,7 +4,7 @@ defmodule Relay.Bundle.Scanner do
   use Relay.Logging
 
   alias Relay.BundleFile
-  alias Relay.Bundle.BundleCatalog
+  alias Relay.Bundle.Catalog
 
   defstruct [:pending_path, :timer]
 
@@ -137,7 +137,7 @@ defmodule Relay.Bundle.Scanner do
       module = Map.fetch!(command, "module")
       {name, String.to_atom(module)}
     end
-    case BundleCatalog.install(bundle_name, commands) do
+    case Catalog.install(bundle_name, commands) do
       :ok ->
         :ok
       error ->
