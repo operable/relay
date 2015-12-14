@@ -2,5 +2,8 @@
 /cover
 /deps
 /doc
+/failed
+/pending
+/bundles
 erl_crash.dump
 *.ez
