@@ -163,10 +163,24 @@ defmodule Relay.Bundle.Scanner do
       true ->
         {:ok, bf}
       false ->
-        File.mkdir_p!(install_dir)
-        case BundleFile.expand_into(bf, install_dir) do
+        bundle_root = Application.get_env(:relay, :bundle_root)
+        case BundleFile.expand_into(bf, bundle_root) do
           :ok ->
-            {:ok, BundleFile.installed_path(bf, install_dir)}
+            case File.dir?(install_dir) do
+              true ->
+                bf = BundleFile.installed_path(bf, install_dir)
+                case BundleFile.verify_installed_files(bf) do
+                  :ok ->
+                    {:ok, BundleFile.installed_path(bf, install_dir)}
+                  {:failed, files} ->
+                    files = Enum.join(files, "\n")
+                    Logger.error("Bundle #{bf.path} contains corrupted files:\n#{files}")
+                    {{:error, :corrupted_bundle}, bf}
+                end
+              _ ->
+                Logger.error("Bundle #{bf.path} did not expand into expected install directory #{install_dir}")
+                {{:error, :failed_expansion}, bf}
+            end
           error ->
             {error, bf}
         end

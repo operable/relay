@@ -101,6 +101,24 @@ second argument.
     list_paths(bundle, :regular)
   end
 
+  @doc "Verify installed files match their manifest.json checksums"
+  @spec verify_installed_files(%__MODULE__{}) :: true | false | {:error, term()}
+  def verify_installed_files(%__MODULE__{installed_path: nil}) do
+    {:error, :not_installed}
+  end
+  def verify_installed_files(%__MODULE__{installed_path: path}=bf) do
+    {:ok, manifest} = manifest(bf)
+    files = Map.fetch!(manifest, "files")
+    case Enum.reduce(files, [], fn(file, acc) ->
+          verify_checksum(path, file, acc) end) do
+      [] ->
+        :ok
+      failing_files ->
+        {:failed, failing_files}
+    end
+  end
+
+
   @doc "Expands a bundle into the target directory"
   @spec expand_into(%__MODULE__{}, String.t()) :: :ok | {:error, term()}
   def expand_into(%__MODULE__{path: path}, target_dir) do
@@ -172,6 +190,21 @@ second argument.
     zip_file(info: info) = zf
     file_info(type: zf_type) = info
     zf_type == type
+  end
+
+  defp verify_checksum(install_path, entry, acc) do
+    checksum = Map.fetch!(entry, "sha256")
+    file_path = Map.fetch!(entry, "path")
+    full_path = Path.join(install_path, file_path)
+    contents = File.read!(full_path)
+    file_checksum = :crypto.hash(:sha256, contents)
+    |> Base.encode16
+    |> String.downcase
+    if file_checksum != checksum do
+      [full_path|acc]
+    else
+      acc
+    end
   end
 
 end
