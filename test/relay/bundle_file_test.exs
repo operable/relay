@@ -2,7 +2,7 @@ defmodule Relay.BundleFileTest do
 
   alias Relay.BundleFile
 
-  use ExUnit.Case
+  use Relay.Test.Hygiene
   use Relay.Test.IO
 
   @test_bundle "github.loop"
@@ -105,6 +105,13 @@ defmodule Relay.BundleFileTest do
     {:ok, bf} = BundleFile.unlock(bf, overwrite: true)
     refute BundleFile.is_locked?(bf)
     assert BundleFile.close(bf)
+  end
+
+  test "verifying file checksums works", context do
+    {:ok, bf} = BundleFile.open(context.test_bundle_path)
+    install_dir = temp_dir!
+    {:ok, bf} = BundleFile.expand_into(bf, install_dir)
+    assert BundleFile.verify_installed_files(bf)
   end
 
 end

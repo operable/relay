@@ -30,12 +30,6 @@ structure, unlocking and expanding bundle files on disk.
     end
   end
 
-  @doc "Sets the bundle's installed path. Purely informational."
-  @spec installed_path(%__MODULE__{}, String.t()) :: %__MODULE__{}
-  def installed_path(%__MODULE__{}=bf, path) do
-    %{bf | installed_path: path}
-  end
-
   @doc "Extracts and parses `manifest.json`."
   @spec manifest(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def manifest(%__MODULE__{fd: fd, name: name}) do
@@ -102,7 +96,7 @@ second argument.
   end
 
   @doc "Verify installed files match their manifest.json checksums"
-  @spec verify_installed_files(%__MODULE__{}) :: true | false | {:error, term()}
+  @spec verify_installed_files(%__MODULE__{}) :: :ok | {:error, :not_installed} | {:failed, [String.t()]}
   def verify_installed_files(%__MODULE__{installed_path: nil}) do
     {:error, :not_installed}
   end
@@ -120,12 +114,12 @@ second argument.
 
 
   @doc "Expands a bundle into the target directory"
-  @spec expand_into(%__MODULE__{}, String.t()) :: :ok | {:error, term()}
-  def expand_into(%__MODULE__{path: path}, target_dir) do
-    File.mkdir_p!(target_dir)
+  @spec expand_into(%__MODULE__{}, String.t()) :: {:ok, %__MODULE__{}} | {:error, term()}
+  def expand_into(%__MODULE__{path: path}=bf, target_dir) do
     case :zip.unzip(cl(path), [{:cwd, cl(target_dir)}]) do
       {:ok, _} ->
-        :ok
+        installed_path = Path.join(target_dir, bf.name)
+        {:ok, %{bf | installed_path: installed_path}}
       error ->
         error
     end
