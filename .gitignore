@@ -6,5 +6,6 @@
 /pending
 /bundles
 /rt_data
+/test/scratch
 erl_crash.dump
 *.ez

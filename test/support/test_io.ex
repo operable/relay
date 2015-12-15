@@ -7,7 +7,8 @@ defmodule Relay.Test.IO do
   end
 
   def temp_dir!() do
-    path = System.tmp_dir!
+    {f, s, t} = :os.timestamp()
+    path = Path.join([File.cwd!(), "test", "scratch", "#{f}#{s}#{t}"])
     File.rm_rf!(path)
     path
   end
