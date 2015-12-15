@@ -108,18 +108,18 @@ defmodule Relay.Bundle.Scanner do
     end
   end
   defp activate_bundle({:ok, bf}) do
-    case BundleFile.unlock(bf) do
-      {:ok, bf} ->
-        case register_bundle(bf) do
-          :ok ->
+    case register_bundle(bf) do
+      :ok ->
+        case BundleFile.unlock(bf) do
+          {:ok, bf} ->
             BundleFile.close(bf)
             {:ok, bf.installed_path}
           error ->
-            Logger.error("Error registering bundle #{bf.path}: #{inspect error}")
+            Logger.error("Error unlocking bundle #{bf.path}: #{inspect error}")
             cleanup_failed_activation(bf)
         end
       error ->
-        Logger.error("Error unlocking bundle #{bf.path}: #{inspect error}")
+        Logger.error("Error registering bundle #{bf.path}: #{inspect error}")
         cleanup_failed_activation(bf)
     end
   end
@@ -137,7 +137,7 @@ defmodule Relay.Bundle.Scanner do
       module = Map.fetch!(command, "module")
       {name, String.to_atom(module)}
     end
-    case Catalog.install(bundle_name, commands) do
+    case Catalog.install(bundle_name, commands, bf.installed_path) do
       :ok ->
         :ok
       error ->
@@ -146,6 +146,7 @@ defmodule Relay.Bundle.Scanner do
   end
 
   defp cleanup_failed_activation(bf) do
+    Catalog.uninstall(bf.name)
     install_dir = build_install_dir(bf)
     File.rm_rf(install_dir)
     triaged_path = build_triaged_path(bf)

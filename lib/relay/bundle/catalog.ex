@@ -20,8 +20,12 @@ defmodule Relay.Bundle.Catalog do
     GenServer.call(__MODULE__, {:installed, bundle_name}, :infinity)
   end
 
-  def install(bundle_name, commands) do
-    GenServer.call(__MODULE__, {:install, bundle_name, commands}, :infinity)
+  def install(bundle_name, commands, path) do
+    GenServer.call(__MODULE__, {:install, bundle_name, commands, path}, :infinity)
+  end
+
+  def uninstall(bundle_name) do
+    GenServer.call(__MODULE__, {:uninstall, bundle_name}, :infinity)
   end
 
   def list_bundles() do
@@ -32,28 +36,46 @@ defmodule Relay.Bundle.Catalog do
     GenServer.call(__MODULE__, {:list_commands, bundle_name}, :infinity)
   end
 
+  def installed_path(bundle_name) do
+    GenServer.call(__MODULE__, {:installed_path, bundle_name}, :infinity)
+  end
+
   def init(_) do
-    bundle_root = Application.get_env(:relay, :bundle_root)
-    if not(File.exists?(bundle_root)) do
-      initialize_root(bundle_root)
+    File.mkdir_p!(Application.get_env(:relay, :bundle_root))
+    data_root = Application.get_env(:relay, :data_root)
+    if not(File.exists?(data_root)) do
+      initialize_data(data_root)
     else
-      verify_root(bundle_root)
+      verify_data(data_root)
     end
   end
 
+  def handle_call({:installed_path, bundle_name}, _from, %__MODULE__{db: db}=state) do
+    case :dets.lookup(db, bundle_name) do
+      [{^bundle_name, data}] ->
+        {:reply, data.path, state}
+      _ ->
+        {:reply, nil, state}
+    end
+  end
+  def handle_call({:uninstall, bundle_name}, _from, %__MODULE__{db: db}=state) do
+    :dets.delete(db, bundle_name)
+    {:reply, :ok, state}
+  end
   def handle_call(:list_bundles, _from, %__MODULE__{db: db}=state) do
     {:reply, all_keys(db), state}
   end
   def handle_call({:list_commands, bundle_name}, _from, %__MODULE__{db: db}=state) do
     case :dets.lookup(db, bundle_name) do
-      [{^bundle_name, commands}] ->
-        {:reply, commands, state}
+      [{^bundle_name, data}] ->
+        {:reply, data.commands, state}
       [] ->
         {:reply, [], state}
     end
   end
-  def handle_call({:install, bundle_name, commands}, _from, %__MODULE__{db: db}=state) do
-    case :dets.insert(db, {bundle_name, commands}) do
+  def handle_call({:install, bundle_name, commands, path}, _from, %__MODULE__{db: db}=state) do
+    case :dets.insert(db, {bundle_name, %{commands: commands,
+                                          path: path}}) do
       :ok ->
         {:reply, :ok, state}
       error ->
@@ -74,25 +96,31 @@ defmodule Relay.Bundle.Catalog do
     {:reply, :ignored, state}
   end
 
-  defp initialize_root(bundle_root) do
-    File.mkdir_p!(bundle_root)
-    db_path = Path.join([bundle_root, catalog_file_name])
+  defp initialize_data(data_root) do
+    File.mkdir_p!(data_root)
+    db_path = Path.join([data_root, catalog_file_name])
     case :dets.open_file(db_path, @dets_options) do
       {:ok, db} ->
-        ready({:ok, %__MODULE__{db: db}})
+        case :dets.sync(db) do
+          :ok ->
+            ready({:ok, %__MODULE__{db: db}})
+          {:error, reason} ->
+            Logger.error("Error initializing bundle catalog: #{inspect reason}")
+            {:error, reason}
+        end
       {:error, reason} ->
         Logger.error("Error initializing bundle catalog: #{inspect reason}")
         {:error, reason}
     end
   end
 
-  defp verify_root(bundle_root) do
-    case File.dir?(bundle_root) do
+  defp verify_data(data_root) do
+    case File.dir?(data_root) do
       false ->
-        Logger.error("Error verifying bundle catalog: #{bundle_root} is not a directory")
-        {:error, :bad_bundle_root}
+        Logger.error("Error verifying bundle catalog: #{data_root} is not a directory")
+        {:error, :bad_data_root}
       true ->
-        db_path = Path.join([bundle_root, catalog_file_name])
+        db_path = Path.join([data_root, catalog_file_name])
         case valid_db_file?(db_path) do
           true ->
             case :dets.open_file(db_path, @dets_options) do
@@ -143,4 +171,5 @@ defmodule Relay.Bundle.Catalog do
   defp all_keys(db, key, accum) do
     all_keys(db, :dets.next(db, key), [key|accum])
   end
+
 end
