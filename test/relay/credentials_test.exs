@@ -2,7 +2,7 @@ defmodule Relay.CredentialsTest do
 
   alias Relay.Credentials
 
-  use ExUnit.Case
+  use Relay.Test.Hygiene
   use Relay.Test.IO
 
   defp perturb(v) when is_binary(v) do

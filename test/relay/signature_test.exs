@@ -2,7 +2,7 @@ defmodule Relay.SignatureTest do
 
   alias Relay.Signature
 
-  use ExUnit.Case
+  use Relay.Test.Hygiene
 
   setup_all do
     {:ok, %{creds: Relay.Credentials.generate_credentials(),
