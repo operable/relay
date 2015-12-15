@@ -14,10 +14,10 @@ defmodule Relay.Logging do
     end
   end
 
-  def format(level, msg, {date, time}, metadata) do
+  def text(level, msg, {date, time}, metadata) do
     "#{format_date(date)} #{format_time(time)}"
     <> format_metadata(metadata)
-    <> "#{level} #{msg}\n"
+    <> "[#{level}] #{msg}\n"
   end
 
   def json(level, msg, {date, time}, metadata) do

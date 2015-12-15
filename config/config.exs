@@ -2,7 +2,7 @@ use Mix.Config
 
 config :logger, :console,
   metadata: [:module, :line],
-  format: {Relay.Logging, :format}
+  format: {Relay.Logging, :text}
 
 config :relay, credentials_dir: "/tmp/relay_#{Mix.env}/credentials"
 
