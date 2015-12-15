@@ -30,6 +30,25 @@ structure, unlocking and expanding bundle files on disk.
     end
   end
 
+  @doc "Opens an installed bundle file"
+  @spec open_installed(String.t()) :: {:ok, %__MODULE__{}} | {:error, term()}
+  def open_installed(installed_path) do
+    case File.dir?(installed_path) do
+      false ->
+        {:error, :bad_path}
+      true ->
+        name = Path.basename(installed_path)
+        loop_path = Path.join([installed_path, "..", "#{name}.loop"])
+        case :zip.zip_open(cl(loop_path), @zip_options) do
+          {:ok, fd} ->
+            {:ok, %__MODULE__{path: loop_path, installed_path: installed_path,
+                              fd: fd, name: name}}
+          error ->
+            error
+        end
+    end
+  end
+
   @doc "Extracts and parses `manifest.json`."
   @spec manifest(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def manifest(%__MODULE__{fd: fd, name: name}) do
@@ -124,6 +143,49 @@ second argument.
         error
     end
   end
+
+  @doc "Determines if bundle-relative path is a file"
+  @spec file?(%__MODULE__{}, String.t()) :: boolean() | {:error, :not_installed} | {:error, :bad_path}
+  def file?(%__MODULE__{installed_path: nil}, _) do
+    {:error, :not_installed}
+  end
+  def file?(%__MODULE__{installed_path: installed_path}, relpath) do
+    case bundle_path(installed_path, relpath) do
+      {:error, _} = error ->
+        error
+      path ->
+        File.file?(path)
+    end
+  end
+
+  @doc "Determines if bundle-relative path is a dir"
+  @spec dir?(%__MODULE__{}, String.t()) :: boolean() | {:error, :not_installed} | {:error, :bad_path}
+  def dir?(%__MODULE__{installed_path: nil}, _) do
+    {:error, :not_installed}
+  end
+  def dir?(%__MODULE__{}=bf, relpath) do
+    case bundle_path(bf, relpath) do
+      {:error, _} = error ->
+        error
+      path ->
+        File.dir?(path)
+    end
+  end
+
+  @doc "Builds a bundle-relative path. Ensures path does not escape bundle directory."
+  def bundle_path(%__MODULE__{installed_path: installed_path}, relpath) do
+    # Ensure relpath doesn't begin with "/"
+    installed_path = Path.absname(installed_path)
+    relpath = String.replace(relpath, ~r/\A\//, "")
+    # Expand ellipses, if any
+    path = Path.expand(Path.absname(relpath, installed_path))
+    if String.starts_with?(path, installed_path) do
+      path
+    else
+      {:error, :bad_path}
+    end
+  end
+
 
   @doc "Closes all file handles associated with the bundle."
   @spec close(%__MODULE__{}) :: :ok

@@ -5,6 +5,7 @@ defmodule Relay.Bundle.Scanner do
 
   alias Relay.BundleFile
   alias Relay.Bundle.Catalog
+  alias Relay.Bundle.Runner
 
   defstruct [:pending_path, :timer]
 
@@ -112,8 +113,15 @@ defmodule Relay.Bundle.Scanner do
       :ok ->
         case BundleFile.unlock(bf) do
           {:ok, bf} ->
-            BundleFile.close(bf)
-            {:ok, bf.installed_path}
+            commands = Catalog.list_commands(bf.name)
+            case Runner.start_bundle(bf.name, bf.installed_path, commands) do
+              {:ok, _} ->
+                BundleFile.close(bf)
+                {:ok, bf.installed_path}
+              error ->
+                Logger.error("Error starting bundle #{bf.path}: #{inspect error}")
+                cleanup_failed_activation(bf)
+            end
           error ->
             Logger.error("Error unlocking bundle #{bf.path}: #{inspect error}")
             cleanup_failed_activation(bf)
@@ -135,7 +143,7 @@ defmodule Relay.Bundle.Scanner do
     commands = for command <- Map.fetch!(config, "commands") do
       name = Map.fetch!(command, "name")
       module = Map.fetch!(command, "module")
-      {name, String.to_atom(module)}
+      {name, module}
     end
     case Catalog.install(bundle_name, commands, bf.installed_path) do
       :ok ->
