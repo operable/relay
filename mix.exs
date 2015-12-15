@@ -15,7 +15,8 @@ defmodule Relay.Mixfile do
   end
 
   def application do
-    [applications: [:logger,
+    [applications: [:crypto,
+                    :logger,
                     :emqttc],
      mod: {Relay, []}]
   end
