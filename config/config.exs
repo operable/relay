@@ -2,11 +2,11 @@ use Mix.Config
 
 config :logger, :console,
   metadata: [:module, :line],
-  format: {Relay.Logging, :text}
+  format: {Adz, :text}
 
-config :relay, credentials_dir: "/tmp/relay_#{Mix.env}/credentials"
+config :carrier, credentials_dir: "/tmp/carrier_#{Mix.env}/credentials"
 
-config :relay, Relay.Messaging.Connection,
+config :carrier, Carrier.Messaging.Connection,
   host: "127.0.0.1",
   port: 1883,
   log_level: :info

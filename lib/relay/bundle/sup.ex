@@ -4,7 +4,7 @@ defmodule Relay.Bundle.Sup do
   """
 
   use Supervisor
-  use Relay.Logging
+  use Adz
   alias Relay.BundleFile
 
   # TODO: when / if a child dies, can we remove the plugin code from

@@ -5,7 +5,7 @@ defmodule Relay.Bundle.Catalog do
   """
 
   use GenServer
-  use Relay.Logging
+  use Adz
 
   @db_version "1.0"
   @dets_options [access: :read_write, estimated_no_objects: 64,

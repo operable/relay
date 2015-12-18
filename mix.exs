@@ -16,8 +16,7 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger,
-                    :emqttc],
+                    :logger],
      mod: {Relay, []}]
   end
 
@@ -26,7 +25,8 @@ defmodule Relay.Mixfile do
      {:ex_doc, "~> 0.11", only: :dev},
      {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
-     {:enacl, github: "jlouis/enacl", tag: "0.14.0"},
+     {:adz, git: "git@github.com:operable/adz", ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"},
+     {:carrier, github: "operable/carrier", branch: "master"},
      {:poison, "~> 1.5.0"},
      {:uuid, "~> 1.0.1"}]
   end

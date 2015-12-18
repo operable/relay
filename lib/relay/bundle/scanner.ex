@@ -1,7 +1,7 @@
 defmodule Relay.Bundle.Scanner do
 
   use GenServer
-  use Relay.Logging
+  use Adz
 
   alias Relay.BundleFile
   alias Relay.Bundle.Catalog

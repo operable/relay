@@ -9,7 +9,7 @@ defmodule Relay.Bundle.Runner do
   """
 
   use Supervisor
-  use Relay.Logging
+  use Adz
 
   def start_link(),
     do: Supervisor.start_link(__MODULE__, [], name: __MODULE__)
