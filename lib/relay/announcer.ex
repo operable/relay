@@ -22,7 +22,7 @@ defmodule Relay.Announcer do
     :random.seed(:os.timestamp())
     case connect_to_bus() do
       {:ok, _conn} ->
-        creds = CredentialManager.get()
+        {:ok, creds} = CredentialManager.get()
         meta_topic = "bot/relays/#{creds.id}/meta"
         ready({:ok, %__MODULE__{meta_topic: meta_topic, backoff_factor: 1, state: :starting}})
       error ->
@@ -59,7 +59,7 @@ defmodule Relay.Announcer do
                                  "role" => "bot",
                                   "public_key" => public_key}}} ->
         creds = %Credentials{id: id, public: Base.decode16!(public_key, case: :lower)}
-        case CredentialManager.store!(creds, true) do
+        case CredentialManager.store(creds) do
           :ok ->
             Logger.info("Stored Cog bot public key: #{creds.id}")
           {:error, _} ->
@@ -93,22 +93,22 @@ defmodule Relay.Announcer do
   defp reconnect?(_), do: false
 
   defp last_will() do
-    creds = CredentialManager.get()
+    {:ok, creds} = CredentialManager.get()
     [topic: @relays_discovery_topic,
      qos: 1,
      retain: false,
-     payload: Poison.encode!(Signature.sign(%{announce: %{relay: creds.id, online: false}}))]
+     payload: Poison.encode!(Signature.sign(creds, %{announce: %{relay: creds.id, online: false}}))]
   end
 
   defp send_announcement(state) do
-    creds = CredentialManager.get()
+    {:ok, creds} = CredentialManager.get()
     announce = %{announce: %{relay: creds.id, online: true}}
     Messaging.Connection.publish(state.mq_conn, announce, routed_by: @relays_discovery_topic)
     {:noreply, state}
   end
 
   defp send_introduction(%__MODULE__{meta_topic: topic}=state) do
-    creds = CredentialManager.get()
+    {:ok, creds} = CredentialManager.get()
     intro = %{intro: %{relay: creds.id, public_key: Base.encode16(creds.public, case: :lower),
                        reply_to: topic}}
     Messaging.Connection.publish(state.mq_conn, intro, routed_by: @relays_discovery_topic)

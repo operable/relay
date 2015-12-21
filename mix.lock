@@ -1,5 +1,5 @@
 %{"adz": {:git, "git@github.com:operable/adz", "07ba970e0bec955f1f3ed1c4771511139924c7fd", [ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"]},
-  "carrier": {:git, "https://github.com/operable/carrier.git", "97d3e353cd3e277011dfbefd30f8e4862ffaedde", [branch: "master"]},
+  "carrier": {:git, "git@github.com:operable/carrier", "2774a006cfaf0a3e75e0bc1518870d735e8bc8c0", [branch: "master"]},
   "earmark": {:hex, :earmark, "0.1.19"},
   "emqttc": {:git, "https://github.com/emqtt/emqttc.git", "9c989657a0e9beaf29ebef64d019c46381cb3599", [branch: "master"]},
   "enacl": {:git, "https://github.com/jlouis/enacl.git", "9830068304e4472e22787ae8fbe4557dc5215403", [tag: "0.14.0"]},
