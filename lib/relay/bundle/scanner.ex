@@ -6,6 +6,7 @@ defmodule Relay.Bundle.Scanner do
   alias Relay.BundleFile
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
+  alias Relay.Announcer
 
   defstruct [:pending_path, :timer]
 
@@ -117,7 +118,14 @@ defmodule Relay.Bundle.Scanner do
             case Runner.start_bundle(bf.name, bf.installed_path, commands) do
               {:ok, _} ->
                 BundleFile.close(bf)
-                {:ok, bf.installed_path}
+                {:ok, config} = Catalog.bundle_config(bf.name)
+                case Announcer.announce(bf.name, config) do
+                  :ok ->
+                    {:ok, bf.installed_path}
+                  error ->
+                    Logger.error("Error announcing bundle #{bf.path} to upstream bot: #{inspect error}")
+                    cleanup_failed_activation(bf)
+                end
               error ->
                 Logger.error("Error starting bundle #{bf.path}: #{inspect error}")
                 cleanup_failed_activation(bf)
@@ -138,19 +146,7 @@ defmodule Relay.Bundle.Scanner do
 
   defp register_bundle(bf) do
     {:ok, config} = BundleFile.config(bf)
-    bundle = Map.fetch!(config, "bundle")
-    bundle_name = Map.fetch!(bundle, "name")
-    commands = for command <- Map.fetch!(config, "commands") do
-      name = Map.fetch!(command, "name")
-      module = Map.fetch!(command, "module")
-      {name, module}
-    end
-    case Catalog.install(bundle_name, commands, bf.installed_path) do
-      :ok ->
-        :ok
-      error ->
-        error
-    end
+    Catalog.install(config, bf.installed_path)
   end
 
   defp cleanup_failed_activation(bf) do

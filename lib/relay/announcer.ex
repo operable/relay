@@ -8,12 +8,17 @@ defmodule Relay.Announcer do
   alias Carrier.CredentialManager
   alias Carrier.Credentials
   alias Carrier.Signature
+  alias Relay.Bundle.Catalog
 
   @relays_discovery_topic "bot/relays/discover"
   @reconnect_interval 1000
 
   def start_link() do
-    GenServer.start_link(__MODULE__, [])
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def announce(name, config) do
+    GenServer.call(__MODULE__, {:announce, name, config}, :infinity)
   end
 
   def init(_) do
@@ -29,6 +34,19 @@ defmodule Relay.Announcer do
         Logger.error("Error starting #{__MODULE__}: #{inspect error}")
         error
     end
+  end
+
+  def handle_call({:announce, name, config}, _from, %__MODULE__{state: :announced}=state) do
+    {:reply, send_bundle_announcement(name, config, state), state}
+  end
+  def handle_call({:announce, name, _}, _from, state) do
+    # We can safely skip announcing the bundle here since we send a complete listing of all commands
+    # when transitioning to the `announced` state
+    Logger.info("Delaying announcement of bundle #{name} until this Relay is connected to its upstream bot.")
+    {:reply, :ok, state}
+  end
+  def handle_call(_, _from, state) do
+    {:reply, :ignored, state}
   end
 
   # MQTT connection dropped
@@ -62,22 +80,22 @@ defmodule Relay.Announcer do
         case CredentialManager.store(creds) do
           :ok ->
             Logger.info("Stored Cog bot public key: #{creds.id}")
-          {:error, _} ->
-            Logger.info("Ignoring Cog bot public key: #{creds.id}")
+          {:error, :exists} ->
+            :ok
+          {:error, _}=error ->
+            Logger.info("Ignoring Cog bot (#{creds.id}) public key: #{inspect error}")
         end
         {:noreply, state}
-      wtf ->
-        IO.puts "#{inspect wtf}"
+      _ ->
         {:noreply, state}
     end
   end
   def handle_info(:announce, state) do
     send_introduction(state)
-    send_announcement(state)
+    send_snapshot_announcement(state)
     {:noreply, state}
   end
-  def handle_info(msg, state) do
-    IO.puts "#{inspect msg}"
+  def handle_info(_msg, state) do
     {:noreply, state}
   end
 
@@ -100,11 +118,19 @@ defmodule Relay.Announcer do
      payload: Poison.encode!(Signature.sign(creds, %{announce: %{relay: creds.id, online: false}}))]
   end
 
-  defp send_announcement(state) do
+  defp send_bundle_announcement(name, bundle, state) do
     {:ok, creds} = CredentialManager.get()
-    announce = %{announce: %{relay: creds.id, online: true}}
+    announce = %{announce: %{relay: creds.id, online: true, bundles: [Map.put(%{}, name, bundle)],
+                             snapshot: false}}
     Messaging.Connection.publish(state.mq_conn, announce, routed_by: @relays_discovery_topic)
-    {:noreply, state}
+  end
+
+  defp send_snapshot_announcement(state) do
+    {:ok, creds} = CredentialManager.get()
+    {:ok, bundles} = Catalog.all_bundles()
+    announce = %{announce: %{relay: creds.id, online: true, bundles: bundles, snapshot: true}}
+    Messaging.Connection.publish(state.mq_conn, announce, routed_by: @relays_discovery_topic)
+    {:noreply, %{state | state: :announced}}
   end
 
   defp send_introduction(%__MODULE__{meta_topic: topic}=state) do

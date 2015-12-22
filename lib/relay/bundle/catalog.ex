@@ -20,16 +20,24 @@ defmodule Relay.Bundle.Catalog do
     GenServer.call(__MODULE__, {:installed, bundle_name}, :infinity)
   end
 
-  def install(bundle_name, commands, path) do
-    GenServer.call(__MODULE__, {:install, bundle_name, commands, path}, :infinity)
+  def install(bundle_config, path) do
+    GenServer.call(__MODULE__, {:install, bundle_config, path}, :infinity)
   end
 
   def uninstall(bundle_name) do
     GenServer.call(__MODULE__, {:uninstall, bundle_name}, :infinity)
   end
 
+  def bundle_config(bundle_name) do
+    GenServer.call(__MODULE__, {:bundle_config, bundle_name}, :infinity)
+  end
+
   def list_bundles() do
     GenServer.call(__MODULE__, :list_bundles, :infinity)
+  end
+
+  def all_bundles() do
+    GenServer.call(__MODULE__, :all_bundles, :infinity)
   end
 
   def list_commands(bundle_name) do
@@ -50,37 +58,56 @@ defmodule Relay.Bundle.Catalog do
     end
   end
 
+  def handle_call({:install, bundle_config, path}, _from, %__MODULE__{db: db}=state) do
+    bundle = Map.fetch!(bundle_config, "bundle")
+    bundle_name = Map.fetch!(bundle, "name")
+    case :dets.insert(db, {bundle_name, %{config: bundle_config,
+                                          path: path}}) do
+      :ok ->
+        case :dets.sync(db) do
+          :ok ->
+            {:reply, :ok, state}
+          error ->
+            :dets.delete(db, bundle_name)
+            {:reply, error, state}
+        end
+      error ->
+        Logger.error("Error registering bundle #{bundle_name}: #{inspect error}")
+        {:reply, error, state}
+    end
+  end
+  def handle_call({:list_commands, bundle_name}, _from, %__MODULE__{db: db}=state) do
+    case :dets.lookup(db, bundle_name) do
+      [{^bundle_name, %{config: config}}] ->
+        commands = for command <- Map.fetch!(config, "commands") do
+          {command["name"], command["module"]}
+        end
+        {:reply, commands, state}
+      [] ->
+        {:reply, [], state}
+    end
+  end
+  def handle_call({:bundle_config, bundle_name}, _from, %__MODULE__{db: db}=state) do
+    case :dets.lookup(db, bundle_name) do
+      [{^bundle_name, %{config: config}}] ->
+        {:reply, {:ok, config}, state}
+      [] ->
+        {:reply, {:ok, nil}, state}
+    end
+  end
+  def handle_call(:list_bundles, _from, %__MODULE__{db: db}=state) do
+    {:reply, all_keys(db), state}
+  end
+  def handle_call(:all_bundles, _from, %__MODULE__{db: db}=state) do
+    bundles = :dets.foldl(fn({name, %{config: config}}, acc) -> [Map.put(%{}, name, config)|acc] end, [], db)
+    {:reply, {:ok, bundles}, state}
+  end
   def handle_call({:installed_path, bundle_name}, _from, %__MODULE__{db: db}=state) do
     case :dets.lookup(db, bundle_name) do
       [{^bundle_name, data}] ->
         {:reply, data.path, state}
       _ ->
         {:reply, nil, state}
-    end
-  end
-  def handle_call({:uninstall, bundle_name}, _from, %__MODULE__{db: db}=state) do
-    :dets.delete(db, bundle_name)
-    {:reply, :ok, state}
-  end
-  def handle_call(:list_bundles, _from, %__MODULE__{db: db}=state) do
-    {:reply, all_keys(db), state}
-  end
-  def handle_call({:list_commands, bundle_name}, _from, %__MODULE__{db: db}=state) do
-    case :dets.lookup(db, bundle_name) do
-      [{^bundle_name, data}] ->
-        {:reply, data.commands, state}
-      [] ->
-        {:reply, [], state}
-    end
-  end
-  def handle_call({:install, bundle_name, commands, path}, _from, %__MODULE__{db: db}=state) do
-    case :dets.insert(db, {bundle_name, %{commands: commands,
-                                          path: path}}) do
-      :ok ->
-        {:reply, :ok, state}
-      error ->
-        Logger.error("Error registering bundle #{bundle_name}: #{inspect error}")
-        {:reply, error, state}
     end
   end
   def handle_call({:installed, bundle_name}, _from, %__MODULE__{db: db}=state) do
@@ -91,6 +118,10 @@ defmodule Relay.Bundle.Catalog do
                 true
             end
     {:reply, reply, state}
+  end
+  def handle_call({:uninstall, bundle_name}, _from, %__MODULE__{db: db}=state) do
+    :dets.delete(db, bundle_name)
+    {:reply, :ok, state}
   end
   def handle_call(_, _from, state) do
     {:reply, :ignored, state}
