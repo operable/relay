@@ -115,7 +115,8 @@ defmodule Relay.Announcer do
     [topic: @relays_discovery_topic,
      qos: 1,
      retain: false,
-     payload: Poison.encode!(Signature.sign(creds, %{announce: %{relay: creds.id, online: false}}))]
+     payload: Poison.encode!(Signature.sign(creds, %{announce: %{relay: creds.id, online: false,
+                                                                 bundles: [], snapshot: true}}))]
   end
 
   defp send_bundle_announcement(name, bundle, state) do
