@@ -99,7 +99,7 @@ defmodule Relay.Bundle.Catalog do
     {:reply, all_keys(db), state}
   end
   def handle_call(:all_bundles, _from, %__MODULE__{db: db}=state) do
-    bundles = :dets.foldl(fn({name, %{config: config}}, acc) -> [Map.put(%{}, name, config)|acc] end, [], db)
+    bundles = :dets.foldl(fn(entry, acc) -> [entry|acc] end, [], db)
     {:reply, {:ok, bundles}, state}
   end
   def handle_call({:installed_path, bundle_name}, _from, %__MODULE__{db: db}=state) do

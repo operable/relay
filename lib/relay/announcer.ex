@@ -120,16 +120,19 @@ defmodule Relay.Announcer do
 
   defp send_bundle_announcement(name, bundle, state) do
     {:ok, creds} = CredentialManager.get()
-    announce = %{announce: %{relay: creds.id, online: true, bundles: [Map.put(%{}, name, bundle)],
+    announce = %{announce: %{relay: creds.id, online: true, bundles: [bundle],
                              snapshot: false}}
     Messaging.Connection.publish(state.mq_conn, announce, routed_by: @relays_discovery_topic)
+    Logger.info("Sent announcement for bundle #{name}")
   end
 
   defp send_snapshot_announcement(state) do
     {:ok, creds} = CredentialManager.get()
     {:ok, bundles} = Catalog.all_bundles()
+    bundles = Enum.map(bundles, fn({_, %{config: config}}) -> config end)
     announce = %{announce: %{relay: creds.id, online: true, bundles: bundles, snapshot: true}}
     Messaging.Connection.publish(state.mq_conn, announce, routed_by: @relays_discovery_topic)
+    Logger.info("Bundle snapshot sent. Bundle count: #{length(bundles)}")
     {:noreply, %{state | state: :announced}}
   end
 
