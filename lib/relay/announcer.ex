@@ -9,6 +9,7 @@ defmodule Relay.Announcer do
   alias Carrier.Credentials
   alias Carrier.Signature
   alias Relay.Bundle.Catalog
+  alias Relay.Bundle.Runner
 
   @relays_discovery_topic "bot/relays/discover"
   @reconnect_interval 1000
@@ -60,16 +61,16 @@ defmodule Relay.Announcer do
       exit({:shutdown, reason})
     end
   end
-  def handle_info({:mqttc, conn, :connected}, %__MODULE__{meta_topic: topic}=state) do
+  def handle_info({:mqttc, conn, :connected}, %__MODULE__{meta_topic: topic, state: state_name}=state) do
     Logger.info("#{__MODULE__} connected.")
     Messaging.Connection.subscribe(conn, topic)
-    case state.state do
-      :starting ->
-        :timer.send_after(10000, :announce)
-      :started ->
-        send(self(), :announce)
+    send(self(), :announce)
+    state_name = if state_name == :starting do
+      :started
+    else
+      state_name
     end
-    {:noreply, %{state | mq_conn: conn, backoff_factor: 1, state: :started}}
+    {:noreply, %{state | mq_conn: conn, backoff_factor: 1, state: state_name}}
   end
   def handle_info({:publish, topic, message}, %__MODULE__{meta_topic: topic}=state) do
     case Poison.decode!(message) do
@@ -91,6 +92,7 @@ defmodule Relay.Announcer do
     end
   end
   def handle_info(:announce, state) do
+    maybe_start_bundles(state)
     send_introduction(state)
     send_snapshot_announcement(state)
     {:noreply, state}
@@ -117,6 +119,23 @@ defmodule Relay.Announcer do
      retain: false,
      payload: Poison.encode!(Signature.sign(creds, %{announce: %{relay: creds.id, online: false,
                                                                  bundles: [], snapshot: true}}))]
+  end
+
+  defp maybe_start_bundles(%__MODULE__{state: :started}) do
+    Logger.info("Starting installed command bundles")
+    for bundle <- Catalog.list_bundles() do
+      installed_path = Catalog.installed_path(bundle)
+      commands = Catalog.list_commands(bundle)
+      case Runner.start_bundle(bundle, installed_path, commands) do
+        {:ok, _} ->
+          Logger.info("Bundle #{bundle} started")
+        error ->
+          Logger.error("Error starting bundle #{bundle}: #{inspect error}")
+      end
+    end
+  end
+  defp maybe_start_bundles(_) do
+    :ok
   end
 
   defp send_bundle_announcement(name, bundle, state) do
