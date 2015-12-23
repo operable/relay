@@ -26,8 +26,10 @@ defmodule Relay.Bundle.Sup do
 
     if BundleFile.dir?(bf, "ebin") do
       bundle_code = BundleFile.bundle_path(bf, "ebin")
-      Logger.info("Adding #{bundle_code} to code path")
-      true = Code.append_path(bundle_code)
+      unless on_code_path?(bundle_code) do
+        Logger.info("Adding #{bundle_code} to code path")
+        true = Code.append_path(bundle_code)
+      end
     end
     children = for {_, module} <- commands do
       worker(Module.concat("Elixir", module), [])
@@ -41,4 +43,12 @@ defmodule Relay.Bundle.Sup do
   # name also helps identify and reference the process.
   defp supervisor_name(name),
     do: String.to_atom("bundle_#{name}_sup")
+
+  defp on_code_path?(path) when is_binary(path) do
+    on_code_path?(String.to_char_list(path))
+  end
+  defp on_code_path?(path) when is_list(path) do
+    Enum.member?(:code.get_path(), path)
+  end
+
 end
