@@ -95,7 +95,6 @@ defmodule Relay.Announcer do
     maybe_start_bundles(state)
     send_introduction(state)
     send_snapshot_announcement(state)
-    {:noreply, state}
   end
   def handle_info(_msg, state) do
     {:noreply, state}
