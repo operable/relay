@@ -36,7 +36,10 @@ defmodule Relay.Bundle.Sup do
     end
 
     Logger.info("#{__MODULE__}: Starting bundle #{bf.name}")
-    supervise(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 60)
+    # Can be one_for_one until services are part of bundles; then
+    # services should start first, followed by commands, and be
+    # restarted rest_for_one
+    supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
   end
 
   # Each bundle should be unique in the system. Giving them a unique
