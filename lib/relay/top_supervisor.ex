@@ -10,7 +10,7 @@ defmodule Relay.TopSupervisor do
     children = [worker(Carrier.CredentialManager, []),
                 worker(Relay.Announcer, []),
                 supervisor(Relay.Bundle.BundleSup, [])]
-    supervise(children, strategy: :one_for_one)
+    supervise(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 60)
   end
 
 end
