@@ -51,15 +51,12 @@ defmodule Relay.Announcer do
   end
 
   # MQTT connection dropped
-  def handle_info({:EXIT, _, {:shutdown, reason}}, %__MODULE__{backoff_factor: bf}=state) do
-    if reconnect?(reason) do
-      Logger.info("#{translate(reason)}. Attempting to reconnect.")
-      :timer.sleep(wait_interval(bf))
-      connect_to_bus()
-      {:noreply, %{state | backoff_factor: next_backoff_factor(bf)}}
-    else
-      exit({:shutdown, reason})
-    end
+  def handle_info({:EXIT, _, {:shutdown, reason}}, state) do
+    Logger.error("Shutting down: #{inspect reason}")
+    # Wait a bit to allow supervisior-mediated restarts to have a
+    # chance of reconnecting
+    :timer.sleep(2000) # 2 seconds
+    {:stop, {:shutdown, reason}, state}
   end
   def handle_info({:mqttc, conn, :connected}, %__MODULE__{meta_topic: topic, state: state_name}=state) do
     Logger.info("#{__MODULE__} connected.")
@@ -99,17 +96,6 @@ defmodule Relay.Announcer do
   def handle_info(_msg, state) do
     {:noreply, state}
   end
-
-  defp translate(:econnrefused) do
-    "MQTT connection refused"
-  end
-  defp translate(:tcp_closed) do
-    "MQTT connection closed"
-  end
-  defp reconnect?(reason) when reason in [:econnrefused, :tcp_closed] do
-    true
-  end
-  defp reconnect?(_), do: false
 
   defp last_will() do
     {:ok, creds} = CredentialManager.get()
@@ -160,36 +146,6 @@ defmodule Relay.Announcer do
     intro = %{intro: %{relay: creds.id, public_key: Base.encode16(creds.public, case: :lower),
                        reply_to: topic}}
     Messaging.Connection.publish(state.mq_conn, intro, routed_by: @relays_discovery_topic)
-  end
-
-  defp wait_interval(backoff_factor) do
-    jitter = :random.uniform(3000)
-    interval = @reconnect_interval * backoff_factor
-    if :random.uniform() > 0.6 do
-      if jitter >= interval do
-        :erlang.round(interval * 0.75)
-      else
-        interval - jitter
-      end
-    else
-      interval + jitter
-    end
-  end
-
-  defp next_backoff_factor(1) do
-    2
-  end
-  defp next_backoff_factor(2) do
-    4
-  end
-  defp next_backoff_factor(4) do
-    10
-  end
-  defp next_backoff_factor(10) do
-    20
-  end
-  defp next_backoff_factor(_) do
-    30
   end
 
   defp connect_to_bus() do
