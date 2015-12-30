@@ -16,8 +16,25 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger],
+                    :logger] |> maybe_add_test_apps,
      mod: {Relay, []}]
+  end
+
+  # If we're starting for tests, we need an emqtt bus running as
+  # well. Requires appropriate config to be set in config/test.exs
+  defp test_apps do
+    [:esockd,
+     :emqttd]
+  end
+
+  defp maybe_add_test_apps(apps) do
+    case Mix.env do
+      :test ->
+        apps
+        |> Enum.concat(test_apps)
+      _ ->
+        apps
+    end
   end
 
   defp deps do
@@ -40,6 +57,12 @@ defmodule Relay.Mixfile do
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
      {:spanner, git: "git@github.com:operable/spanner", ref: "8147943a4079930620c5e3a243c73af8681b901d"}
+
+     # Same as Loop uses, and only for test, as a way to get around
+     # Mix's annoying habit of starting up the application before
+     # running ExUnit; Relay will not start unless there is a message
+     # bus to connect to.
+     {:emqttd, github: "operable/emqttd", branch: "tweaks-for-upstream", only: :test}
     ]
   end
 
