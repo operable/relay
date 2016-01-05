@@ -1,8 +1,8 @@
 %{"adz": {:git, "git@github.com:operable/adz", "07ba970e0bec955f1f3ed1c4771511139924c7fd", [ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"]},
-  "carrier": {:git, "git@github.com:operable/carrier", "2774a006cfaf0a3e75e0bc1518870d735e8bc8c0", [branch: "master"]},
+  "carrier": {:git, "git@github.com:operable/carrier", "fa21dab921ba699d52005fca51b67cc1fa3b3e54", [ref: "fa21dab921ba699d52005fca51b67cc1fa3b3e54"]},
   "earmark": {:hex, :earmark, "0.1.19"},
   "emqttc": {:git, "https://github.com/emqtt/emqttc.git", "9c989657a0e9beaf29ebef64d019c46381cb3599", [branch: "master"]},
-  "enacl": {:git, "https://github.com/jlouis/enacl.git", "9830068304e4472e22787ae8fbe4557dc5215403", [tag: "0.14.0"]},
+  "enacl": {:git, "https://github.com/jlouis/enacl.git", "03f93c4f7d0cb56b5a86b445cb004a3a8de2278b", [tag: "0.15.0"]},
   "ex_doc": {:hex, :ex_doc, "0.11.1"},
   "fs": {:hex, :fs, "0.9.2"},
   "gen_logger": {:git, "git://github.com/emqtt/gen_logger.git", "eced518f1dea167bebd576bb8b1cccb764a45739", [branch: "master"]},
@@ -10,5 +10,7 @@
   "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
   "lager": {:git, "git://github.com/basho/lager.git", "7177cb0737f4b9757a7b82d9ebf70e3684936434", [branch: "master"]},
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.4"},
+  "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8"]},
   "poison": {:hex, :poison, "1.5.0"},
+  "spanner": {:git, "git@github.com:operable/spanner", "5c11a2316e27b86ae7857e67d35dc56a0e20b7c2", [ref: "5c11a2316e27b86ae7857e67d35dc56a0e20b7c2"]},
   "uuid": {:hex, :uuid, "1.0.1"}}

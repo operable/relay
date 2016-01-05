@@ -26,7 +26,7 @@ defmodule Relay.Mixfile do
      {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
      {:adz, git: "git@github.com:operable/adz", ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"},
-     {:carrier, git: "git@github.com:operable/carrier", branch: "master"},
+     {:spanner, git: "git@github.com:operable/spanner", ref: "5c11a2316e27b86ae7857e67d35dc56a0e20b7c2"},
      {:poison, "~> 1.5.0"},
      {:uuid, "~> 1.0.1"}]
   end
