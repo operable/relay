@@ -15,6 +15,7 @@ defmodule Relay.Announcer do
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
 
+  @relays_cnc_topic "bot/relays/cnc"
   @relays_discovery_topic "bot/relays/discover"
   @reconnect_interval 1000
 
@@ -34,7 +35,7 @@ defmodule Relay.Announcer do
         meta_topic = "bot/relays/#{creds.id}/meta"
 
         Connection.subscribe(conn, meta_topic)
-
+        Connection.subscribe(conn, @relays_cnc_topic)
         start_bundles
         send_introduction(creds, conn, meta_topic)
         send_snapshot_announcement(creds, conn)
@@ -52,23 +53,10 @@ defmodule Relay.Announcer do
     do: {:reply, :ignored, state}
 
   def handle_info({:publish, topic, message}, %__MODULE__{meta_topic: topic}=state) do
-    case Poison.decode!(message) do
-      %{"data" => %{"intro" => %{"id" => id,
-                                 "role" => "bot",
-                                 "public_key" => public_key}}} ->
-        creds = %Credentials{id: id, public: Base.decode16!(public_key, case: :lower)}
-        case CredentialManager.store(creds) do
-          :ok ->
-            Logger.info("Stored Cog bot public key: #{creds.id}")
-          {:error, :exists} ->
-            :ok
-          {:error, _}=error ->
-            Logger.info("Ignoring Cog bot (#{creds.id}) public key: #{inspect error}")
-        end
-        {:noreply, state}
-      _ ->
-        {:noreply, state}
-    end
+    handle_bot_message(Poison.decode!(message), state)
+  end
+  def handle_info({:publish, @relays_cnc_topic, message}, state) do
+    handle_bot_message(Poison.decode!(message), state)
   end
   def handle_info({:EXIT, conn, reason} , %__MODULE__{mq_conn: conn}=state) do
     Logger.error("Message bus connection dropped; shutting down: #{inspect reason}")
@@ -79,6 +67,25 @@ defmodule Relay.Announcer do
   end
   def handle_info(_msg, state),
     do: {:noreply, state}
+
+  defp handle_bot_message(%{"data" => %{"intro" => %{"id" => id,
+                                                     "role" => "bot",
+                                                     "public_key" => public_key}}}, state) do
+    creds = %Credentials{id: id, public: Base.decode16!(public_key, case: :lower)}
+    case CredentialManager.store(creds) do
+      :ok ->
+        Logger.info("Stored Cog bot public key: #{creds.id}")
+      {:error, :exists} ->
+        :ok
+      {:error, _}=error ->
+        Logger.info("Ignoring Cog bot (#{creds.id}) public key: #{inspect error}")
+    end
+    {:noreply, state}
+    end
+  defp handle_bot_message(message, state) do
+    IO.puts "#{inspect message}"
+    {:noreply, state}
+  end
 
   defp start_bundles do
     Logger.info("Starting installed command bundles")
