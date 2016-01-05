@@ -175,7 +175,7 @@ defmodule Relay.Announcer do
     snapshot(loop_data.topic, id, bundles)
     |> publish(loop_data.mq_conn)
 
-    {:next_state, :waiting_for_snapshot_ack, mark_as_in_flight(loop_data, id, bundles)}
+    maybe_transition_state({:snapshotting, :waiting_for_snapshot_ack}, mark_as_in_flight(loop_data, id, bundles))
   end
 
   def waiting_for_snapshot_ack({:retry_announcement, id}, %__MODULE__{in_flight: in_flight}=loop_data) do
@@ -239,19 +239,8 @@ defmodule Relay.Announcer do
     case CredentialManager.verify_signed_message(message) do
       {true, %{"acknowledged" => id}} ->
         if currently_in_flight?(loop_data, id) do
-          case state do
-            :waiting_for_snapshot_ack ->
-              # If we were waiting for a snapshot acknowledgment, we
-              # just got it; we need to go to :announcing with an
-              # immediate timeout event to flush any pending
-              # announcements we may have accumulated.
-              {:next_state, :announcing, mark_as_acknowledged(loop_data, id), 0}
-            :announcing ->
-              # If, on the other hand, we're currently in :announcing,
-              # timers have already been set up to flush pending
-              # announcements, so we don't need to set up any more.
-              {:next_state, :announcing, mark_as_acknowledged(loop_data, id)}
-          end
+          loop_data = mark_as_acknowledged(loop_data, id)
+          maybe_transition_state({state, :announcing}, loop_data)
         else
           Logger.warn("Acknowledged announcement with ID #{inspect id}, but no record of such an announcement exists; perhaps Relay restarted?")
           {:next_state, state, loop_data}
@@ -285,7 +274,7 @@ defmodule Relay.Announcer do
           {:error, _}=error ->
             Logger.info("Ignoring Cog bot (#{creds.id}) public key: #{inspect error}")
         end
-        {:next_state, :snapshotting, loop_data, 0}
+        maybe_transition_state({:waiting_for_key, :snapshotting}, loop_data)
       other ->
         Logger.warn("Received unexpected message in :waiting_for_key state: #{inspect other}")
         {:next_state, :waiting_for_key, loop_data}
@@ -430,5 +419,36 @@ defmodule Relay.Announcer do
      payload: signed_payload]
   end
 
+  # Basic infrastructure for checking loop_data invariants at state
+  # transition points
+  defp maybe_transition_state({from_state, to_state}=transition, loop_data) when transition in [{:waiting_for_snapshot_ack, :announcing},
+                                                                                                {:waiting_for_key, :snapshotting}] do
+    if no_in_flight_announcements?(loop_data) do
+      # In both transition cases, going to either :announcing or
+      # :snapshotting, we want to trigger an immediate timeout event.
+      #
+      # In the transition to announcing, we want to immediately flush
+      # any pending announcements.
+      #
+      # In the transition to snapshotting, we're using the timeout=0
+      # trick to directly drive the progression between states instead
+      # of relying on external events to do so.
+      {:next_state, to_state, loop_data, 0}
+    else
+      Logger.error("FSM invariant not met transitioning from :waiting_for_snapshot_ack -> :announcing; there should be no other in-flight announcements, but there were: #{inspect loop_data.in_flight}")
+      {:stop,
+       {:invariant_not_met, from_state, to_state, :in_flight_announcements},
+       loop_data}
+    end
+  end
+  defp maybe_transition_state({current_state, current_state}, loop_data),
+    # If we're staying in the same state, then just stay in the same state!
+    do: {:next_state, current_state, loop_data}
+  defp maybe_transition_state({_from_state, to_state}, loop_data),
+    do: {:next_state, to_state, loop_data}
+
+  # loop data invariant predicate
+  defp no_in_flight_announcements?(loop_data),
+    do: loop_data.in_flight == %{}
 
 end
