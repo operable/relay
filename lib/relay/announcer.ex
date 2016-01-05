@@ -146,7 +146,7 @@ defmodule Relay.Announcer do
     case connect_to_bus() do
       {:ok, conn} ->
         {:ok, creds} = CredentialManager.get()
-        topic = "/bot/relays/#{creds.id}/announcer"
+        topic = "bot/relays/#{creds.id}/announcer"
         Logger.debug("Subscribing to topic #{topic}")
         Connection.subscribe(conn, topic)
 
