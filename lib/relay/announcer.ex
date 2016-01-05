@@ -250,7 +250,7 @@ defmodule Relay.Announcer do
               # If, on the other hand, we're currently in :announcing,
               # timers have already been set up to flush pending
               # announcements, so we don't need to set up any more.
-              {:next_state, :announcing, mark_as_acknowledged(state, id)}
+              {:next_state, :announcing, mark_as_acknowledged(loop_data, id)}
           end
         else
           Logger.warn("Acknowledged announcement with ID #{inspect id}, but no record of such an announcement exists; perhaps Relay restarted?")
