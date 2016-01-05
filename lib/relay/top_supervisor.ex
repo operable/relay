@@ -20,6 +20,10 @@ defmodule Relay.TopSupervisor do
       # it to be up
       worker(Relay.Bundle.Catalog, []),
 
+      # Start up all currently-installed bundles before announcing
+      # them to the world
+      worker(Relay.Bundle.Starter, []),
+
       # Announcer depends on all the previous being up and running.
       # Announces the bundles the bot knows about.
       #

@@ -119,7 +119,7 @@ defmodule Relay.Bundle.Scanner do
               {:ok, _} ->
                 BundleFile.close(bf)
                 {:ok, config} = Catalog.bundle_config(bf.name)
-                case Announcer.announce(bf.name, config) do
+                case Announcer.announce(config) do
                   :ok ->
                     {:ok, bf.installed_path}
                   error ->
