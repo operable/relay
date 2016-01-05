@@ -117,11 +117,8 @@ defmodule Relay.Announcer do
   alias Carrier.Signature
   alias Relay.Bundle.Catalog
 
-  def start_link() do
-    {:ok, pid} = :gen_fsm.start_link({:local, __MODULE__}, __MODULE__, [], [])
-    :sys.trace(__MODULE__, true) # TODO: Just for debugging, obviously
-    {:ok, pid}
-  end
+  def start_link(),
+    do: :gen_fsm.start_link({:local, __MODULE__}, __MODULE__, [], [])
 
   @doc """
   Announce the presence of a single new bundle. This is the main
