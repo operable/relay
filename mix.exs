@@ -16,8 +16,25 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger],
+                    :logger] |> maybe_add_test_apps,
      mod: {Relay, []}]
+  end
+
+  # If we're starting for tests, we need an emqtt bus running as
+  # well. Requires appropriate config to be set in config/test.exs
+  defp test_apps do
+    [:esockd,
+     :emqttd]
+  end
+
+  defp maybe_add_test_apps(apps) do
+    case Mix.env do
+      :test ->
+        apps
+        |> Enum.concat(test_apps)
+      _ ->
+        apps
+    end
   end
 
   defp deps do
@@ -26,9 +43,27 @@ defmodule Relay.Mixfile do
      {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
      {:adz, git: "git@github.com:operable/adz", ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"},
-     {:spanner, git: "git@github.com:operable/spanner", ref: "5c11a2316e27b86ae7857e67d35dc56a0e20b7c2"},
      {:poison, "~> 1.5.0"},
-     {:uuid, "~> 1.0.1"}]
+     {:uuid, "~> 1.0.1"},
+
+     # Though we do not explicitly use Spanner in Relay, we provide it
+     # as a runtime dependency for command bundles.
+     #
+     # Also, while we do use Carrier directly in Relay, it is a
+     # dependency of spanner, so we'll take the version Spanner
+     # depends on, rather than explicitly listing it. This ensures
+     # that we have compatible versions without manual maintenance.
+     #
+     # Ditto for Piper (a dependency of spanner and runtime dependency
+     # of bundles).
+     {:spanner, git: "git@github.com:operable/spanner", ref: "5c11a2316e27b86ae7857e67d35dc56a0e20b7c2"},
+
+     # Same as Loop uses, and only for test, as a way to get around
+     # Mix's annoying habit of starting up the application before
+     # running ExUnit; Relay will not start unless there is a message
+     # bus to connect to.
+     {:emqttd, github: "operable/emqttd", branch: "tweaks-for-upstream", only: :test}
+    ]
   end
 
   defp docs do

@@ -16,3 +16,5 @@ config :relay, bundle_root: Path.join([File.cwd!, "bundles"])
 config :relay, pending_bundle_root: Path.join([File.cwd!, "pending"])
 config :relay, triage_bundle_root: Path.join([File.cwd!, "failed"])
 config :relay, bundle_scan_interval_secs: 30
+
+import_config "#{Mix.env}.exs"
