@@ -119,6 +119,7 @@ defmodule Relay.Bundle.Scanner do
               {:ok, _} ->
                 BundleFile.close(bf)
                 {:ok, config} = Catalog.bundle_config(bf.name)
+                config = include_template_sources(config)
                 case Announcer.announce(config) do
                   :ok ->
                     {:ok, bf.installed_path}
@@ -224,4 +225,18 @@ defmodule Relay.Bundle.Scanner do
     end
   end
 
+  defp include_template_sources(config) do
+    templates = Map.get(config, "templates", [])
+
+    root = Application.get_env(:relay, :bundle_root)
+    bundle_path = Path.join(root, config["bundle"]["name"])
+
+    templates = for template <- templates do
+      %{"path" => relative_path} = template
+      template_path = Path.join(bundle_path, relative_path)
+      Map.put(template, "source", File.read!(template_path))
+    end
+
+    Map.put(config, "templates", templates)
+  end
 end
