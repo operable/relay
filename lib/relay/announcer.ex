@@ -450,5 +450,4 @@ defmodule Relay.Announcer do
   # loop data invariant predicate
   defp no_in_flight_announcements?(loop_data),
     do: loop_data.in_flight == %{}
-
 end
