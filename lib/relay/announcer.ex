@@ -376,11 +376,9 @@ defmodule Relay.Announcer do
                     :increment -> false
                   end
 
-    configs = Enum.map(List.wrap(configs), &include_template_sources/1)
-
     %{announce: %{relay: creds.id,
                   online: true,
-                  bundles: configs,
+                  bundles: List.wrap(configs),
                   snapshot: is_snapshot,
                   reply_to: topic,
                   announcement_id: id}}
@@ -452,19 +450,4 @@ defmodule Relay.Announcer do
   # loop data invariant predicate
   defp no_in_flight_announcements?(loop_data),
     do: loop_data.in_flight == %{}
-
-  defp include_template_sources(config) do
-    templates = Map.get(config, "templates", [])
-
-    root = Application.get_env(:relay, :bundle_root)
-    bundle_path = Path.join(root, config["bundle"]["name"])
-
-    templates = for template <- templates do
-      %{"path" => relative_path} = template
-      template_path = Path.join(bundle_path, relative_path)
-      Map.put(template, "source", File.read!(template_path))
-    end
-
-    Map.put(config, "templates", templates)
-  end
 end
