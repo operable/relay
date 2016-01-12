@@ -22,8 +22,8 @@ defmodule Relay.Bundle.Runner do
   @doc """
   Start up a new bundle under this supervisor.
   """
-  def start_bundle(name, installed_path, commands) do
-    Supervisor.start_child(__MODULE__, [name, installed_path, commands])
+  def start_bundle(name, installed_path, config) do
+    Supervisor.start_child(__MODULE__, [name, installed_path, config])
   end
 
 end

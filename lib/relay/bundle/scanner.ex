@@ -103,7 +103,13 @@ defmodule Relay.Bundle.Scanner do
   defp activate_bundle(path) when is_binary(path) do
     case BundleFile.open(path) do
       {:ok, bf} ->
-        activate_bundle(expand_bundle(bf))
+        case activate_bundle(expand_bundle(bf)) do
+          {:ok, _}=result ->
+            result
+          error ->
+            cleanup_failed_activation(bf)
+            error
+        end
       error ->
         Logger.error("Error opening locked bundle #{path}: #{inspect error}")
         error
@@ -114,34 +120,34 @@ defmodule Relay.Bundle.Scanner do
       :ok ->
         case BundleFile.unlock(bf) do
           {:ok, bf} ->
-            commands = Catalog.list_commands(bf.name)
-            case Runner.start_bundle(bf.name, bf.installed_path, commands) do
+            installed_path = Catalog.installed_path(bf.name)
+            {:ok, config} = Catalog.bundle_config(bf.name)
+            case Runner.start_bundle(bf.name, installed_path, config) do
               {:ok, _} ->
                 BundleFile.close(bf)
-                {:ok, config} = Catalog.bundle_config(bf.name)
                 case Announcer.announce(config) do
                   :ok ->
                     {:ok, bf.installed_path}
                   error ->
                     Logger.error("Error announcing bundle #{bf.path} to upstream bot: #{inspect error}")
-                    cleanup_failed_activation(bf)
+                    error
                 end
               error ->
                 Logger.error("Error starting bundle #{bf.path}: #{inspect error}")
-                cleanup_failed_activation(bf)
+                error
             end
           error ->
             Logger.error("Error unlocking bundle #{bf.path}: #{inspect error}")
-            cleanup_failed_activation(bf)
+            error
         end
       error ->
         Logger.error("Error registering bundle #{bf.path}: #{inspect error}")
-        cleanup_failed_activation(bf)
+        error
     end
   end
   defp activate_bundle({error, bf}) do
     Logger.error("Error activating bundle #{bf.path}: #{inspect error}")
-    cleanup_failed_activation(bf)
+    error
   end
 
   defp register_bundle(bf) do

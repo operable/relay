@@ -5,7 +5,7 @@ defmodule Relay.Bundle.Sup do
 
   use Supervisor
   use Adz
-  alias Relay.BundleFile
+  alias Spanner.GenCommand
 
   # TODO: when / if a child dies, can we remove the plugin code from
   # the path? Or do we even bother, given that we're going to
@@ -15,27 +15,29 @@ defmodule Relay.Bundle.Sup do
   Start up a supervisor for the given `bundle` of commands and
   services.
   """
-  def start_link(name, installed_path, commands) do
-    Supervisor.start_link(__MODULE__, [installed_path, commands],
+  def start_link(name, installed_path, config) do
+    Supervisor.start_link(__MODULE__, [installed_path, config],
                           name: supervisor_name(name))
   end
 
 
-  def init([installed_path, commands]) do
-    {:ok, bf} = BundleFile.open_installed(installed_path)
-
-    if BundleFile.dir?(bf, "ebin") do
-      bundle_code = BundleFile.bundle_path(bf, "ebin")
+  def init([installed_path, %{"bundle" => %{"name" => bundle_name},
+                              "commands" => commands}]) do
+    bundle_code = Path.join(installed_path, "ebin")
+    if File.dir?(bundle_code) do
       unless on_code_path?(bundle_code) do
         Logger.info("Adding #{bundle_code} to code path")
         true = Code.append_path(bundle_code)
       end
     end
-    children = for {_, module} <- commands do
-      worker(Module.concat("Elixir", module), [])
+    children = for command <- commands do
+      module_name = command["module"]
+      cmd_name = command["name"]
+      module = Module.concat([module_name])
+      worker(GenCommand, [bundle_name, cmd_name, module, []], id: module)
     end
 
-    Logger.info("#{__MODULE__}: Starting bundle #{bf.name}")
+    Logger.info("#{__MODULE__}: Starting bundle #{bundle_name}")
     # Can be one_for_one until services are part of bundles; then
     # services should start first, followed by commands, and be
     # restarted rest_for_one

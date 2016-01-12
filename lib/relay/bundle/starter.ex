@@ -18,8 +18,8 @@ defmodule Relay.Bundle.Starter do
     Logger.info("Starting installed command bundles")
     for bundle <- Catalog.list_bundles() do
       installed_path = Catalog.installed_path(bundle)
-      commands = Catalog.list_commands(bundle)
-      case Runner.start_bundle(bundle, installed_path, commands) do
+      {:ok, config} = Catalog.bundle_config(bundle)
+      case Runner.start_bundle(bundle, installed_path, config) do
         {:ok, _} ->
           Logger.info("Bundle #{bundle} started")
         {:error, reason} ->
