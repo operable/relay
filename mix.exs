@@ -16,7 +16,8 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger] |> maybe_add_test_apps,
+                    :logger,
+                    :porcelain] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
 
@@ -45,6 +46,7 @@ defmodule Relay.Mixfile do
      {:adz, git: "git@github.com:operable/adz", ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"},
      {:poison, "~> 1.5.0"},
      {:uuid, "~> 1.0.1"},
+     {:porcelain, "~> 2.0.1"},
 
      # Though we do not explicitly use Spanner in Relay, we provide it
      # as a runtime dependency for command bundles.
