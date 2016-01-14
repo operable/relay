@@ -16,7 +16,8 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger] |> maybe_add_test_apps,
+                    :logger,
+                    :porcelain] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
 
@@ -45,6 +46,7 @@ defmodule Relay.Mixfile do
      {:adz, git: "git@github.com:operable/adz", ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"},
      {:poison, "~> 1.5.0"},
      {:uuid, "~> 1.0.1"},
+     {:porcelain, "~> 2.0.1"},
 
      # Though we do not explicitly use Spanner in Relay, we provide it
      # as a runtime dependency for command bundles.
@@ -56,7 +58,7 @@ defmodule Relay.Mixfile do
      #
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
-     {:spanner, git: "git@github.com:operable/spanner", ref: "73018479972f81a8619085de67e76432b65ae637"},
+     {:spanner, git: "git@github.com:operable/spanner", branch: "kevsmith/foreign-commands-prep"},
 
      # Same as Loop uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before

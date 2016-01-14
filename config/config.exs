@@ -17,4 +17,10 @@ config :relay, pending_bundle_root: Path.join([File.cwd!, "pending"])
 config :relay, triage_bundle_root: Path.join([File.cwd!, "failed"])
 config :relay, bundle_scan_interval_secs: 30
 
+# Force Porcelain to use the goon driver so we can use
+# nifty features like OS signals.
+if Mix.env == :dev do
+config :porcelain, :driver, Porcelain.Driver.Goon
+end
+
 import_config "#{Mix.env}.exs"
