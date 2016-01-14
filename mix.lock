@@ -14,8 +14,8 @@
   "lager": {:git, "git://github.com/basho/lager.git", "310ed140ab86b95dd9f1f1ed3bf2ca93f841349d", [branch: "master"]},
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.5"},
   "mochiweb": {:git, "git://github.com/emqtt/mochiweb.git", "f1ce26fe373b2a9b52b0b1a5d2306ebb225af7bd", [branch: "master"]},
-  "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8"]},
+  "piper": {:git, "git@github.com:operable/piper", "888d9df3eeeb16954bf0e68c9083a28baf6c92d5", [ref: "888d9df3eeeb16954bf0e68c9083a28baf6c92d5"]},
   "poison": {:hex, :poison, "1.5.0"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "git@github.com:operable/spanner", "539521ecfa973696f258036fb09811efa7ea145b", [branch: "kevsmith/foreign-commands"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "8137731076b6bbcb9453b0432d73e6d9782ea78a", [branch: "kevsmith/foreign-commands-prep"]},
   "uuid": {:hex, :uuid, "1.0.1"}}
