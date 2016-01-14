@@ -19,6 +19,8 @@ config :relay, bundle_scan_interval_secs: 30
 
 # Force Porcelain to use the goon driver so we can use
 # nifty features like OS signals.
+if Mix.env == :dev
 config :porcelain, :driver, Porcelain.Driver.Goon
+end
 
 import_config "#{Mix.env}.exs"
