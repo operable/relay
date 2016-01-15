@@ -22,24 +22,27 @@ defmodule Relay.Bundle.Sup do
 
 
   def init([installed_path, commands]) do
-    {:ok, bf} = BundleFile.open_installed(installed_path)
-
-    if BundleFile.dir?(bf, "ebin") do
-      bundle_code = BundleFile.bundle_path(bf, "ebin")
-      unless on_code_path?(bundle_code) do
-        Logger.info("Adding #{bundle_code} to code path")
-        true = Code.append_path(bundle_code)
-      end
+    case BundleFile.open_installed(installed_path) do
+      {:ok, bf} ->
+        if BundleFile.dir?(bf, "ebin") do
+          bundle_code = BundleFile.bundle_path(bf, "ebin")
+          unless on_code_path?(bundle_code) do
+            Logger.info("Adding #{bundle_code} to code path")
+            true = Code.append_path(bundle_code)
+          end
+        end
+        children = for {_, module} <- commands do
+          worker(Module.concat("Elixir", module), [])
+        end
+        Logger.info("#{__MODULE__}: Starting bundle #{bf.name}")
+        # Can be one_for_one until services are part of bundles; then
+        # services should start first, followed by commands, and be
+        # restarted rest_for_one
+        supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
+      error ->
+        Logger.error("Error starting bundle installed on path '#{installed_path}': #{inspect error}")
+        :ignore
     end
-    children = for {_, module} <- commands do
-      worker(Module.concat("Elixir", module), [])
-    end
-
-    Logger.info("#{__MODULE__}: Starting bundle #{bf.name}")
-    # Can be one_for_one until services are part of bundles; then
-    # services should start first, followed by commands, and be
-    # restarted rest_for_one
-    supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
   end
 
   # Each bundle should be unique in the system. Giving them a unique
