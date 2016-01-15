@@ -15,13 +15,13 @@ defmodule Relay.Bundle.Sup do
   Start up a supervisor for the given `bundle` of commands and
   services.
   """
-  def start_link(name, installed_path, commands) do
-    Supervisor.start_link(__MODULE__, [installed_path, commands],
+  def start_link(name, installed_path) do
+    Supervisor.start_link(__MODULE__, [installed_path],
                           name: supervisor_name(name))
   end
 
 
-  def init([installed_path, commands]) do
+  def init([installed_path]) do
     case BundleFile.open_installed(installed_path) do
       {:ok, bf} ->
         if BundleFile.dir?(bf, "ebin") do
@@ -31,9 +31,15 @@ defmodule Relay.Bundle.Sup do
             true = Code.append_path(bundle_code)
           end
         end
-        children = for {_, module} <- commands do
-          worker(Module.concat("Elixir", module), [])
+        {:ok, config} = BundleFile.config(bf)
+        bundle_name = config["bundle"]["name"]
+        commands = config["commands"]
+        children = for command <- commands do
+          name = command["name"]
+          module = Module.concat([command["module"]])
+          worker(Spanner.GenCommand, [bundle_name, name, module, []], id: module)
         end
+        BundleFile.close(bf)
         Logger.info("#{__MODULE__}: Starting bundle #{bf.name}")
         # Can be one_for_one until services are part of bundles; then
         # services should start first, followed by commands, and be

@@ -16,5 +16,5 @@
   "mochiweb": {:git, "git://github.com/emqtt/mochiweb.git", "f1ce26fe373b2a9b52b0b1a5d2306ebb225af7bd", [branch: "master"]},
   "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "888d9df3eeeb16954bf0e68c9083a28baf6c92d5"]},
   "poison": {:hex, :poison, "1.5.0"},
-  "spanner": {:git, "git@github.com:operable/spanner", "dad301c837aec37e87f20fb22dfcaeee3f87ee27", [branch: "kevsmith/bundle_name-attribute"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "7bae1b67a1ddee6091b7f264c5649603f3b631e5", [branch: "kevsmith/bundle_name-attribute"]},
   "uuid": {:hex, :uuid, "1.0.1"}}
