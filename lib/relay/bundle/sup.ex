@@ -47,7 +47,7 @@ defmodule Relay.Bundle.Sup do
         supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
       error ->
         Logger.error("Error starting bundle installed on path '#{installed_path}': #{inspect error}")
-        :ignore
+        error
     end
   end
 
