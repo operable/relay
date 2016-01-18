@@ -56,7 +56,7 @@ defmodule Relay.Mixfile do
      #
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
-     {:spanner, git: "git@github.com:operable/spanner", ref: "73018479972f81a8619085de67e76432b65ae637"},
+     {:spanner, git: "git@github.com:operable/spanner", ref: "08c8dbd192bd3093f2705df3c29274b32d426d0a"},
 
      # Same as Loop uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
