@@ -22,8 +22,15 @@ defmodule Relay.Bundle.Runner do
   @doc """
   Start up a new bundle under this supervisor.
   """
-  def start_bundle(name, installed_path, _commands) do
-    Supervisor.start_child(__MODULE__, [name, installed_path])
+  def start_bundle(name, installed_path) do
+    Supervisor.start_child(__MODULE__, [[bundle: name, elixir: installed_path]])
+  end
+
+  @doc """
+  Start up a new foreign bundle under this supervisor.
+  """
+  def start_foreign_bundle(name, installed_path) do
+    Supervisor.start_child(__MODULE__, [[bundle: name, foreign: installed_path]])
   end
 
 end
