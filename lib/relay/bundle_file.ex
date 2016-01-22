@@ -18,10 +18,11 @@ structure, unlocking and expanding bundle files on disk.
   @doc "Opens a bundle file."
   @spec open(String.t()) :: {:ok, %__MODULE__{}} | {:error, term()}
   def open(path) do
+    bundle_extension = Spanner.bundle_extension()
     name = path
     |> Path.basename
-    |> String.replace(~r/.loop$/, "")
-    |> String.replace(~r/.loop.locked$/, "")
+    |> String.replace(Regex.compile!(".#{bundle_extension}$"), "")
+    |> String.replace(Regex.compile!(".#{bundle_extension}.locked$"), "")
     case :zip.zip_open(cl(path), @zip_options) do
       {:ok, fd} ->
         {:ok, %__MODULE__{path: path, fd: fd, name: name}}
@@ -38,10 +39,10 @@ structure, unlocking and expanding bundle files on disk.
         {:error, :bad_path}
       true ->
         name = Path.basename(installed_path)
-        loop_path = Path.join([installed_path, "..", "#{name}.loop"])
-        case :zip.zip_open(cl(loop_path), @zip_options) do
+        cog_path = Path.join([installed_path, "..", "#{name}.#{Spanner.bundle_extension()}"])
+        case :zip.zip_open(cl(cog_path), @zip_options) do
           {:ok, fd} ->
-            {:ok, %__MODULE__{path: loop_path, installed_path: installed_path,
+            {:ok, %__MODULE__{path: cog_path, installed_path: installed_path,
                               fd: fd, name: name}}
           error ->
             error

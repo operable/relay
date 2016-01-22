@@ -11,7 +11,6 @@ defmodule Relay.Bundle.Scanner do
 
   defstruct [:pending_path, :timer]
 
-  @bundle_suffix ".loop"
   @foreign_bundle_suffix ".json"
 
   def start_link(),
@@ -79,7 +78,7 @@ defmodule Relay.Bundle.Scanner do
 
   defp pending_bundle_files() do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
-    Path.wildcard(Path.join(pending_path, "*#{@bundle_suffix}"))
+    Path.wildcard(Path.join(pending_path, "*#{Spanner.bundle_extension()}"))
   end
 
   defp pending_foreign_bundle_files() do
@@ -92,7 +91,7 @@ defmodule Relay.Bundle.Scanner do
   end
   defp install_bundles([bundle_path|t]) do
     cond do
-      String.ends_with?(bundle_path, @bundle_suffix) ->
+      String.ends_with?(bundle_path, Spanner.bundle_extension()) ->
         install_elixir_bundle(bundle_path)
       String.ends_with?(bundle_path, @foreign_bundle_suffix) ->
         install_foreign_bundle(bundle_path)
