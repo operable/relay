@@ -16,7 +16,8 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger] |> maybe_add_test_apps,
+                    :logger,
+                    :spanner] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
 
