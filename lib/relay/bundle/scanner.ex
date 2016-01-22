@@ -3,6 +3,7 @@ defmodule Relay.Bundle.Scanner do
   use GenServer
   use Adz
 
+  alias Spanner.Bundle.ConfigValidator
   alias Relay.BundleFile
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
@@ -92,22 +93,22 @@ defmodule Relay.Bundle.Scanner do
   defp install_bundles([bundle_path|t]) do
     cond do
       String.ends_with?(bundle_path, @bundle_suffix) ->
-        install_bundle(bundle_path)
+        install_elixir_bundle(bundle_path)
       String.ends_with?(bundle_path, @foreign_bundle_suffix) ->
         install_foreign_bundle(bundle_path)
     end
     install_bundles(t)
   end
 
-  defp install_bundle(bundle_path) do
-    Logger.info("Installing bundle #{bundle_path}.")
+  defp install_elixir_bundle(bundle_path) do
+    Logger.info("Installing Elixir bundle #{bundle_path}.")
     case lock_bundle(bundle_path) do
       {:ok, locked_path} ->
         case activate_bundle(locked_path) do
           {:ok, installed_path} ->
-            Logger.info("Bundle #{bundle_path} installed to #{installed_path} successfully.")
+            Logger.info("Elixir Bundle #{bundle_path} installed to #{installed_path} successfully.")
           _error ->
-            Logger.info("Installation of bundle #{bundle_path} failed.")
+            Logger.info("Installation of Elixir bundle #{bundle_path} failed.")
         end
       error ->
         error
@@ -119,37 +120,39 @@ defmodule Relay.Bundle.Scanner do
       {:ok, contents} ->
         case Poison.decode(contents) do
           {:ok, config} ->
-            if valid_foreign_config?(config, bundle_path) do
-              installed_path = installed_foreign_path(bundle_path)
-              bundle_name = config["bundle"]["name"]
-              case File.rename(bundle_path, installed_path) do
-                :ok ->
-                  case Catalog.install(config, installed_path) do
-                    :ok ->
-                      case Runner.start_foreign_bundle(bundle_name, installed_path,
-                                                       Catalog.list_commands(bundle_name)) do
-                        {:ok, _} ->
-                          case Announcer.announce(config) do
-                            :ok ->
-                              {:ok, installed_path}
-                            error ->
-                              Logger.error("Error launching foreign bundle #{bundle_path}: #{inspect error}")
-                              cleanup_failed_activation(bundle_path, bundle_name)
-                          end
-                        error ->
-                          Logger.error("Error launching foreign command bundle: #{bundle_path}: #{inspect error}")
-                          cleanup_failed_activation(bundle_path, bundle_name)
-                      end
-                    error ->
-                      Logger.error("Error installing foreign bundle #{bundle_path}: #{inspect error}")
-                      cleanup_failed_activation(bundle_path, bundle_name)
-                  end
-                error ->
-                  Logger.error("Error moving foreign bundle #{bundle_path} into place: #{inspect error}")
-                  cleanup_failed_activation(bundle_path, bundle_name)
-              end
-            else
-              cleanup_failed_activation(bundle_path)
+            case ConfigValidator.validate(config) do
+              :ok ->
+                installed_path = installed_foreign_path(bundle_path)
+                bundle_name = config["bundle"]["name"]
+                case File.rename(bundle_path, installed_path) do
+                  :ok ->
+                    case Catalog.install(config, installed_path) do
+                      :ok ->
+                        case Runner.start_foreign_bundle(bundle_name, installed_path) do
+                          {:ok, _} ->
+                            case Announcer.announce(config) do
+                              :ok ->
+                                {:ok, installed_path}
+                                Logger.info("Foreign bundle #{bundle_path} installed to #{installed_path} successfully.")
+                              error ->
+                                Logger.error("Error launching foreign bundle #{bundle_path}: #{inspect error}")
+                                cleanup_failed_activation(bundle_path, bundle_name)
+                            end
+                          error ->
+                            Logger.error("Error launching foreign command bundle: #{bundle_path}: #{inspect error}")
+                            cleanup_failed_activation(bundle_path, bundle_name)
+                        end
+                      error ->
+                        Logger.error("Error installing foreign bundle #{bundle_path}: #{inspect error}")
+                        cleanup_failed_activation(bundle_path, bundle_name)
+                    end
+                  error ->
+                    Logger.error("Error moving foreign bundle #{bundle_path} into place: #{inspect error}")
+                    cleanup_failed_activation(bundle_path, bundle_name)
+                end
+              {:error, {_reason, _field, message}} ->
+                Logger.error("Error validating #{bundle_path}: #{message}")
+                cleanup_failed_activation(bundle_path)
             end
           error ->
             Logger.error("Error parsing foreign bundle #{bundle_path} as JSON: #{inspect error}")
@@ -175,8 +178,7 @@ defmodule Relay.Bundle.Scanner do
       :ok ->
         case BundleFile.unlock(bf) do
           {:ok, bf} ->
-            commands = Catalog.list_commands(bf.name)
-            case Runner.start_bundle(bf.name, bf.installed_path, commands) do
+            case Runner.start_bundle(bf.name, bf.installed_path) do
               {:ok, _} ->
                 BundleFile.close(bf)
                 {:ok, config} = Catalog.bundle_config(bf.name)
@@ -263,37 +265,6 @@ defmodule Relay.Bundle.Scanner do
             end
           error ->
             {error, bf}
-        end
-    end
-  end
-
-  defp valid_foreign_config?(config, bundle_path) do
-    valid_foreign_config?(config, bundle_path, type: config["bundle"]["type"])
-  end
-
-  defp valid_foreign_config?(config, bundle_path, type: "foreign") do
-    valid_foreign_config?(config, bundle_path, commands: config["commands"])
-  end
-  defp valid_foreign_config?(_config, _bundle_path, commands: []) do
-    true
-  end
-  defp valid_foreign_config?(config, bundle_path, commands: [h|t]) do
-    case Map.get(h, "name") do
-      nil ->
-        Logger.error("Unnamed command discovered in foreign bundle #{bundle_path}")
-        false
-      name ->
-        case Map.get(h, "executable") do
-          nil ->
-            Logger.error("Command #{name} in foreign bundle #{bundle_path} is missing required field 'executable'")
-            false
-          executable ->
-            case System.find_executable(executable) do
-              nil ->
-                Logger.error("Command #{name} in foreign bundle #{bundle_path} uses a missing executable: #{executable}")
-              _ ->
-                valid_foreign_config?(config, bundle_path, commands: t)
-            end
         end
     end
   end
