@@ -57,7 +57,7 @@ defmodule Relay.Mixfile do
      #
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
-     {:spanner, git: "git@github.com:operable/spanner", branch: "kevsmith/foreign-command"},
+     {:spanner, git: "git@github.com:operable/spanner", ref: "544aff8a7bdabd6fdb9cbeeaef08fdbfc81e5712"},
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
      # running ExUnit; Relay will not start unless there is a message
