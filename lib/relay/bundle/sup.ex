@@ -5,7 +5,7 @@ defmodule Relay.Bundle.Sup do
 
   use Supervisor
   use Adz
-  alias Relay.BundleFile
+  alias Relay.Bundle.Catalog
 
   # TODO: when / if a child dies, can we remove the plugin code from
   # the path? Or do we even bother, given that we're going to
@@ -15,40 +15,42 @@ defmodule Relay.Bundle.Sup do
   Start up a supervisor for the given `bundle` of commands and
   services.
   """
-  def start_link(name, installed_path) do
-    Supervisor.start_link(__MODULE__, [installed_path],
-                          name: supervisor_name(name))
+  def start_link([{:bundle, bundle}|_]=opts) do
+    Supervisor.start_link(__MODULE__, opts,
+                          name: supervisor_name(bundle))
   end
 
-
-  def init([installed_path]) do
-    case BundleFile.open_installed(installed_path) do
-      {:ok, bf} ->
-        if BundleFile.dir?(bf, "ebin") do
-          bundle_code = BundleFile.bundle_path(bf, "ebin")
-          unless on_code_path?(bundle_code) do
-            Logger.info("Adding #{bundle_code} to code path")
-            true = Code.append_path(bundle_code)
-          end
-        end
-        {:ok, config} = BundleFile.config(bf)
-        bundle_name = config["bundle"]["name"]
-        commands = config["commands"]
-        children = for command <- commands do
-          name = command["name"]
-          module = Module.concat([command["module"]])
-          worker(Spanner.GenCommand, [bundle_name, name, module, []], id: module)
-        end
-        BundleFile.close(bf)
-        Logger.info("#{__MODULE__}: Starting bundle #{bf.name}")
-        # Can be one_for_one until services are part of bundles; then
-        # services should start first, followed by commands, and be
-        # restarted rest_for_one
-        supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
-      error ->
-        Logger.error("Error starting bundle installed on path '#{installed_path}': #{inspect error}")
-        error
+  def init([bundle: bundle_name, foreign: _installed_path]) do
+    {:ok, config} = Catalog.bundle_config(bundle_name)
+    commands = config["commands"]
+    children = for command <- commands do
+      name = command["name"]
+      executable = command["executable"]
+      args = [bundle: bundle_name, command: name, executable: executable]
+      id = foreign_id(bundle_name, name)
+      worker(Spanner.GenCommand, [bundle_name, name, Spanner.GenCommand.Foreign, args], id: id)
     end
+    supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
+  end
+
+  def init([bundle: bundle_name, elixir: installed_path]) do
+    bundle_code = Path.join(installed_path, "ebin")
+    unless on_code_path?(bundle_code) do
+      Logger.info("Adding #{bundle_code} to code path")
+      true = Code.append_path(bundle_code)
+    end
+    {:ok, config} = Catalog.bundle_config(bundle_name)
+    commands = config["commands"]
+    children = for command <- commands do
+      name = command["name"]
+      module = Module.concat([command["module"]])
+      worker(Spanner.GenCommand, [bundle_name, name, module, []], id: module)
+    end
+    Logger.info("#{__MODULE__}: Starting bundle #{bundle_name}")
+    # Can be one_for_one until services are part of bundles; then
+    # services should start first, followed by commands, and be
+    # restarted rest_for_one
+    supervise(children, strategy: :one_for_one, max_restarts: 5, max_seconds: 60)
   end
 
   # Each bundle should be unique in the system. Giving them a unique
@@ -61,6 +63,10 @@ defmodule Relay.Bundle.Sup do
   end
   defp on_code_path?(path) when is_list(path) do
     Enum.member?(:code.get_path(), path)
+  end
+
+  defp foreign_id(bundle_name, name) do
+    String.to_atom(Enum.join(["relay", "foreign", bundle_name, name], "."))
   end
 
 end

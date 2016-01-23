@@ -16,7 +16,8 @@ defmodule Relay.Mixfile do
 
   def application do
     [applications: [:crypto,
-                    :logger] |> maybe_add_test_apps,
+                    :logger,
+                    :spanner] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
 
@@ -56,7 +57,7 @@ defmodule Relay.Mixfile do
      #
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
-     {:spanner, git: "git@github.com:operable/spanner", ref: "08c8dbd192bd3093f2705df3c29274b32d426d0a"},
+     {:spanner, git: "git@github.com:operable/spanner", ref: "544aff8a7bdabd6fdb9cbeeaef08fdbfc81e5712"},
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
      # running ExUnit; Relay will not start unless there is a message

@@ -3,6 +3,7 @@ defmodule Relay.Bundle.Scanner do
   use GenServer
   use Adz
 
+  alias Spanner.Bundle.ConfigValidator
   alias Relay.BundleFile
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
@@ -11,6 +12,7 @@ defmodule Relay.Bundle.Scanner do
   defstruct [:pending_path, :timer]
 
   @bundle_suffix ".loop"
+  @foreign_bundle_suffix ".json"
 
   def start_link(),
   do: GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -38,7 +40,7 @@ defmodule Relay.Bundle.Scanner do
   end
 
   def handle_info(:scan, state) do
-    install_bundles(pending_bundle_files())
+    install_bundles(pending_bundle_files() ++ pending_foreign_bundle_files())
     {:ok, timer} = :timer.send_after((scan_interval() * 1000), :scan)
     {:noreply, %{state | timer: timer}}
   end
@@ -57,14 +59,12 @@ defmodule Relay.Bundle.Scanner do
         Logger.error("Error starting bundle scanner: Upload path #{pending_path} is not a directory")
         {:error, :bad_pending_path}
       true ->
-        case pending_bundle_files() do
-          [] ->
-            Logger.info("No pending bundles found.")
-            ready({:ok, %__MODULE__{pending_path: pending_path}})
-          _bundles ->
-            Logger.info("Pending bundles will be installed shortly.")
-            ready({:ok, %__MODULE__{pending_path: pending_path}})
+        if pending_files? do
+          Logger.info("Pending bundles will be installed shortly.")
+        else
+          Logger.info("No pending Elixir or foreign bundles found.")
         end
+        ready({:ok, %__MODULE__{pending_path: pending_path}})
     end
   end
 
@@ -72,31 +72,95 @@ defmodule Relay.Bundle.Scanner do
     Application.get_env(:relay, :bundle_scan_interval_secs)
   end
 
+  defp pending_files? do
+    length(pending_bundle_files()) > 0 or
+    length(pending_foreign_bundle_files()) > 0
+  end
+
   defp pending_bundle_files() do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
     Path.wildcard(Path.join(pending_path, "*#{@bundle_suffix}"))
+  end
+
+  defp pending_foreign_bundle_files() do
+    pending_path = Application.get_env(:relay, :pending_bundle_root)
+    Path.wildcard(Path.join(pending_path, "*#{@foreign_bundle_suffix}"))
   end
 
   defp install_bundles([]) do
     :ok
   end
   defp install_bundles([bundle_path|t]) do
-    install_bundle(bundle_path)
+    cond do
+      String.ends_with?(bundle_path, @bundle_suffix) ->
+        install_elixir_bundle(bundle_path)
+      String.ends_with?(bundle_path, @foreign_bundle_suffix) ->
+        install_foreign_bundle(bundle_path)
+    end
     install_bundles(t)
   end
 
-  defp install_bundle(bundle_path) do
-    Logger.info("Installing bundle #{bundle_path}.")
+  defp install_elixir_bundle(bundle_path) do
+    Logger.info("Installing Elixir bundle #{bundle_path}.")
     case lock_bundle(bundle_path) do
       {:ok, locked_path} ->
         case activate_bundle(locked_path) do
           {:ok, installed_path} ->
-            Logger.info("Bundle #{bundle_path} installed to #{installed_path} successfully.")
+            Logger.info("Elixir Bundle #{bundle_path} installed to #{installed_path} successfully.")
           _error ->
-            Logger.info("Installation of bundle #{bundle_path} failed.")
+            Logger.info("Installation of Elixir bundle #{bundle_path} failed.")
         end
       error ->
         error
+    end
+  end
+
+  defp install_foreign_bundle(bundle_path) do
+    case File.read(bundle_path) do
+      {:ok, contents} ->
+        case Poison.decode(contents) do
+          {:ok, config} ->
+            case ConfigValidator.validate(config) do
+              :ok ->
+                installed_path = installed_foreign_path(bundle_path)
+                bundle_name = config["bundle"]["name"]
+                case File.rename(bundle_path, installed_path) do
+                  :ok ->
+                    case Catalog.install(config, installed_path) do
+                      :ok ->
+                        case Runner.start_foreign_bundle(bundle_name, installed_path) do
+                          {:ok, _} ->
+                            case Announcer.announce(config) do
+                              :ok ->
+                                {:ok, installed_path}
+                                Logger.info("Foreign bundle #{bundle_path} installed to #{installed_path} successfully.")
+                              error ->
+                                Logger.error("Error launching foreign bundle #{bundle_path}: #{inspect error}")
+                                cleanup_failed_activation(bundle_path, bundle_name)
+                            end
+                          error ->
+                            Logger.error("Error launching foreign command bundle: #{bundle_path}: #{inspect error}")
+                            cleanup_failed_activation(bundle_path, bundle_name)
+                        end
+                      error ->
+                        Logger.error("Error installing foreign bundle #{bundle_path}: #{inspect error}")
+                        cleanup_failed_activation(bundle_path, bundle_name)
+                    end
+                  error ->
+                    Logger.error("Error moving foreign bundle #{bundle_path} into place: #{inspect error}")
+                    cleanup_failed_activation(bundle_path, bundle_name)
+                end
+              {:error, {_reason, _field, message}} ->
+                Logger.error("Error validating #{bundle_path}: #{message}")
+                cleanup_failed_activation(bundle_path)
+            end
+          error ->
+            Logger.error("Error parsing foreign bundle #{bundle_path} as JSON: #{inspect error}")
+            cleanup_failed_activation(bundle_path)
+        end
+      error ->
+        Logger.error("Error reading foreign bundle #{bundle_path} contents: #{inspect error}")
+        cleanup_failed_activation(bundle_path)
     end
   end
 
@@ -114,8 +178,7 @@ defmodule Relay.Bundle.Scanner do
       :ok ->
         case BundleFile.unlock(bf) do
           {:ok, bf} ->
-            commands = Catalog.list_commands(bf.name)
-            case Runner.start_bundle(bf.name, bf.installed_path, commands) do
+            case Runner.start_bundle(bf.name, bf.installed_path) do
               {:ok, _} ->
                 BundleFile.close(bf)
                 {:ok, config} = Catalog.bundle_config(bf.name)
@@ -149,15 +212,31 @@ defmodule Relay.Bundle.Scanner do
     Catalog.install(config, bf.installed_path)
   end
 
+  defp cleanup_failed_activation(path, name) do
+    Catalog.uninstall(name)
+    triage_file(path)
+  end
+
+  defp cleanup_failed_activation(path) when is_binary(path) do
+    triage_file(path)
+  end
   defp cleanup_failed_activation(bf) do
     Catalog.uninstall(bf.name)
     install_dir = build_install_dir(bf)
     File.rm_rf(install_dir)
-    triaged_path = build_triaged_path(bf)
-    BundleFile.close(bf)
+    triage_file(bf)
+  end
+
+  defp triage_file(path) when is_binary(path) do
+    triaged_path = build_triaged_path(path)
     File.rm(triaged_path)
     Logger.info("Triaging failed bundle to #{triaged_path}")
-    File.rename(bf.path, triaged_path)
+    File.rename(path, triaged_path)
+  end
+  defp triage_file(bf) do
+    path = bf.path
+    BundleFile.close(bf)
+    triage_file(path)
   end
 
   defp expand_bundle(bf) do
@@ -190,10 +269,10 @@ defmodule Relay.Bundle.Scanner do
     end
   end
 
-  defp build_triaged_path(bf) do
+  defp build_triaged_path(path) when is_binary(path) do
     triage_root = Application.get_env(:relay, :triage_bundle_root)
     File.mkdir_p(triage_root)
-    bundle_file_name = Path.basename(bf.path)
+    bundle_file_name = Path.basename(path)
     |> String.replace(~r/.locked$/, "")
     Path.join(triage_root, bundle_file_name)
   end
@@ -203,6 +282,12 @@ defmodule Relay.Bundle.Scanner do
     bundle = Map.fetch!(config, "bundle")
     name = Map.fetch!(bundle, "name")
     Path.join([Path.dirname(bf.path), name])
+  end
+
+  defp installed_foreign_path(bundle_path) do
+    bundle_root = Application.get_env(:relay, :bundle_root)
+    bundle_file = Path.basename(bundle_path)
+    Path.join(bundle_root, bundle_file)
   end
 
   defp lock_bundle(bundle_path) do
