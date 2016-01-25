@@ -21,8 +21,8 @@ structure, unlocking and expanding bundle files on disk.
     bundle_extension = Spanner.bundle_extension()
     name = path
     |> Path.basename
-    |> String.replace(Regex.compile!(".#{bundle_extension}$"), "")
-    |> String.replace(Regex.compile!(".#{bundle_extension}.locked$"), "")
+    |> String.replace(Regex.compile!("#{bundle_extension}$"), "")
+    |> String.replace(Regex.compile!("#{bundle_extension}.locked$"), "")
     case :zip.zip_open(cl(path), @zip_options) do
       {:ok, fd} ->
         {:ok, %__MODULE__{path: path, fd: fd, name: name}}
@@ -39,7 +39,7 @@ structure, unlocking and expanding bundle files on disk.
         {:error, :bad_path}
       true ->
         name = Path.basename(installed_path)
-        cog_path = Path.join([installed_path, "..", "#{name}.#{Spanner.bundle_extension()}"])
+        cog_path = Path.join([installed_path, "..", "#{name}#{Spanner.bundle_extension()}"])
         case :zip.zip_open(cl(cog_path), @zip_options) do
           {:ok, fd} ->
             {:ok, %__MODULE__{path: cog_path, installed_path: installed_path,
