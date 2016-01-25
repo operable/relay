@@ -100,6 +100,37 @@ defmodule Relay.Bundle.InstallHelpers do
     error
   end
 
+  def verify_foreign_executables(installed_path, config) do
+    if config["bundle"]["type"] != "foreign" do
+      {:ok, config}
+    else
+      verify_foreign_executables(installed_path, config, config["commands"], [])
+    end
+  end
+
+  defp verify_foreign_executables(_installed_path, config, [], commands) do
+    commands = Enum.reverse(commands)
+    {:ok, Map.put(config, "commands", commands)}
+  end
+  defp verify_foreign_executables(installed_path, config, [cmd|t], accum) do
+    executable = cmd["executable"]
+    if File.regular?(executable) do
+      verify_foreign_executables(installed_path, config, t, [cmd|accum])
+    else
+      if File.dir?(installed_path) do
+        private_executable = Path.join(installed_path, executable)
+        if File.regular?(private_executable) do
+          cmd = Map.put(cmd, "executable", private_executable)
+          verify_foreign_executables(installed_path, config, t, [cmd|accum])
+        else
+          {:error, {cmd["name"], :missing_file, [executable, private_executable]}}
+        end
+      else
+        {:error, {cmd["name"], :missing_file, [executable]}}
+      end
+    end
+  end
+
   defp expand_bundle(bf) do
     install_dir = build_install_dir(bf)
     case File.exists?(install_dir) do
@@ -134,7 +165,13 @@ defmodule Relay.Bundle.InstallHelpers do
     {:ok, config} = BundleFile.config(bf)
     case ConfigValidator.validate(config) do
       :ok ->
-        Catalog.install(config, bf.installed_path)
+        case verify_foreign_executables(bf.installed_path, config) do
+          {:ok, config} ->
+            Catalog.install(config, bf.installed_path)
+          {error, {command, :missing_files, alts}} ->
+            Logger.error("Error finding executables for #{command} in foreign bundle #{bf.path}: #{Enum.join(alts, ",")}")
+            error
+        end
       {:error, {error_type, _, message}}=error ->
         Logger.error("config.json for bundle #{bf.path} failed validation: #{error_type}  #{message}")
         error

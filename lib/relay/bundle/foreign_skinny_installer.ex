@@ -31,30 +31,39 @@ defmodule Relay.Bundle.ForeignSkinnyInstaller do
   end
 
   defp install_file(bundle_path, config, :ok) do
-    bundle_name = config["bundle"]["name"]
     installed_path = installed_foreign_path(bundle_path)
-    add_to_catalog(bundle_path, config, bundle_name, File.rename(bundle_path, installed_path))
+    verify_executables(bundle_path, installed_path, config, File.rename(bundle_path, installed_path))
   end
   defp install_file(bundle_path, _config, error) do
     Logger.error("Error validating bundle config for bundle #{bundle_path}: #{inspect error}")
     Helpers.cleanup_failed_activation(bundle_path)
   end
 
-  defp add_to_catalog(bundle_path, config, bundle_name, :ok) do
+  defp verify_executables(bundle_path, installed_path, config, :ok) do
+    add_to_catalog(bundle_path, config["bundle"]["name"], Helpers.verify_foreign_executables(installed_path, config))
+  end
+  defp verify_executables(bundle_path, installed_path, config, error) do
+    Logger.error("Error installing bundle #{bundle_path} to #{installed_path}: #{inspect error}")
+    Helpers.cleanup_failed_activation(installed_path, config["bundle"]["name"])
+  end
+
+
+  defp add_to_catalog(bundle_path, bundle_name, {:ok, config}) do
     installed_path = installed_foreign_path(bundle_path)
     start_bundle(bundle_path, config, installed_path, bundle_name, Catalog.install(config, installed_path))
   end
-  defp add_to_catalog(bundle_path, _config, bundle_name, error) do
-    Logger.error("Error installing bundle #{bundle_path}: #{inspect error}")
-    Helpers.cleanup_failed_activation(bundle_path, bundle_name)
+  defp add_to_catalog(bundle_path, bundle_name, {:error, {cmd, :missing_file, files}}) do
+    Logger.error("Foreign bundle #{bundle_path} missing files for #{cmd}: #{Enum.join(files, ",")}")
+    installed_path = installed_foreign_path(bundle_path)
+    Helpers.cleanup_failed_activation(installed_path, bundle_name)
   end
 
   defp start_bundle(bundle_path, config, installed_path, bundle_name, :ok) do
     announce_bundle(bundle_path, config, bundle_name, Runner.start_foreign_bundle(bundle_name, installed_path))
   end
-  defp start_bundle(bundle_path, _config, _installed_path, bundle_name, error) do
+  defp start_bundle(bundle_path, _config, installed_path, bundle_name, error) do
     Logger.error("Error adding bundle #{bundle_path} to bundle catalog: #{inspect error}")
-    Helpers.cleanup_failed_activation(bundle_path, bundle_name)
+    Helpers.cleanup_failed_activation(installed_path, bundle_name)
   end
 
   defp announce_bundle(bundle_path, config, bundle_name, {:ok, _}) do
@@ -62,7 +71,8 @@ defmodule Relay.Bundle.ForeignSkinnyInstaller do
   end
   defp announce_bundle(bundle_path, _config, bundle_name, error) do
     Logger.error("Error starting bundle #{bundle_path}: #{inspect error}")
-    Helpers.cleanup_failed_activation(bundle_path, bundle_name)
+    installed_path = installed_foreign_path(bundle_path)
+    Helpers.cleanup_failed_activation(installed_path, bundle_name)
   end
 
   defp finish_install(bundle_path, _bundle_name, :ok) do
@@ -71,7 +81,8 @@ defmodule Relay.Bundle.ForeignSkinnyInstaller do
   end
   defp finish_install(bundle_path, bundle_name, error) do
     Logger.error("Error announcing bundle #{bundle_path}: #{inspect error}")
-    Helpers.cleanup_failed_activation(bundle_path, bundle_name)
+    installed_path = installed_foreign_path(bundle_path)
+    Helpers.cleanup_failed_activation(installed_path, bundle_name)
   end
 
   defp installed_foreign_path(bundle_path) do
