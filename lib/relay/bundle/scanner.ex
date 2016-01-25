@@ -11,8 +11,6 @@ defmodule Relay.Bundle.Scanner do
 
   defstruct [:pending_path, :timer]
 
-  @foreign_bundle_suffix ".json"
-
   def start_link(),
   do: GenServer.start_link(__MODULE__, [], name: __MODULE__)
 
@@ -83,7 +81,7 @@ defmodule Relay.Bundle.Scanner do
 
   defp pending_foreign_bundle_files() do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
-    Path.wildcard(Path.join(pending_path, "*#{@foreign_bundle_suffix}"))
+    Path.wildcard(Path.join(pending_path, "*#{Spanner.foreign_bundle_extension()}"))
   end
 
   defp install_bundles([]) do
@@ -93,7 +91,7 @@ defmodule Relay.Bundle.Scanner do
     cond do
       String.ends_with?(bundle_path, Spanner.bundle_extension()) ->
         install_elixir_bundle(bundle_path)
-      String.ends_with?(bundle_path, @foreign_bundle_suffix) ->
+      String.ends_with?(bundle_path, Spanner.foreign_bundle_extension()) ->
         install_foreign_bundle(bundle_path)
     end
     install_bundles(t)
