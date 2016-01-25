@@ -5,8 +5,8 @@ defmodule Relay.BundleFileTest do
   use Relay.Test.Hygiene
   use Relay.Test.IO
 
-  @test_bundle "github.loop"
-  @locked_test_bundle "github.loop.locked"
+  @test_bundle "github.cog"
+  @locked_test_bundle "github.cog.locked"
 
   defp asset_dir() do
     Path.join([File.cwd!, "test", "assets"])
