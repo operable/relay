@@ -4,6 +4,7 @@ defmodule Relay.Bundle.ForeignInstaller do
 
   require Logger
 
+  alias Relay.Bundle.BundleFile
   alias Relay.Bundle.Runner
   alias Relay.Bundle.InstallHelpers, as: Helpers
 
@@ -11,7 +12,7 @@ defmodule Relay.Bundle.ForeignInstaller do
     Logger.info("Installing foreign bundle #{bundle_path}.")
     case Helpers.lock_bundle(bundle_path) do
       {:ok, locked_path} ->
-        case Helpers.activate_bundle(locked_path, preinstall: &exec_preinstall/1,
+        case Helpers.activate_bundle(locked_path, install: &exec_install/1,
             runner: &Runner.start_foreign_bundle/2) do
           {:ok, installed_path} ->
             Logger.info("Foreign Bundle #{bundle_path} installed to #{installed_path} successfully.")
@@ -23,8 +24,15 @@ defmodule Relay.Bundle.ForeignInstaller do
     end
   end
 
-  def exec_preinstall(_bf) do
-    :ok
+  def exec_install(bf) do
+    {:ok, config} = BundleFile.config(bf)
+    bundle = config["bundle"]
+    case Map.get(bundle, "install") do
+      nil ->
+        :ok
+      script ->
+        Helpers.run_install_script(bf.installed_path, script)
+    end
   end
 
 end

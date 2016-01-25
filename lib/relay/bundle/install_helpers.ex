@@ -60,9 +60,9 @@ defmodule Relay.Bundle.InstallHelpers do
     end
   end
   def activate_bundle({:ok, bf}, opts) do
-    preinstall = Keyword.get(opts, :preinstall)
+    install_hook = Keyword.get(opts, :install)
     runner = Keyword.get(opts, :runner, &Runner.start_bundle/2)
-    case run_preinstall(preinstall, bf) do
+    case run_install_hook(install_hook, bf) do
       :ok ->
         case register_bundle(bf) do
           :ok ->
@@ -90,8 +90,7 @@ defmodule Relay.Bundle.InstallHelpers do
           _error ->
             cleanup_failed_activation(bf)
         end
-      error ->
-        Logger.error("Error running preinstall hook for bundle #{bf.path}: #{inspect error}")
+      _error ->
         cleanup_failed_activation(bf)
     end
   end
@@ -105,6 +104,34 @@ defmodule Relay.Bundle.InstallHelpers do
       {:ok, config}
     else
       verify_foreign_executables(installed_path, config, config["commands"], [])
+    end
+  end
+
+  def run_install_script(installed_path, script) do
+    {script, rest} = case String.split(script, " ") do
+                       [^script] ->
+                         {script, []}
+                       [script|t] ->
+                         {script, t}
+                     end
+    installed_script = Path.join(installed_path, script)
+    cond do
+      File.regular?(script) ->
+        run_script(Enum.join([script|rest], " "))
+      File.regular?(installed_script) ->
+        run_script(Enum.join([installed_script|rest], " "))
+      true ->
+        {:error, {:missing_file, script}}
+    end
+  end
+
+  defp run_script(script) do
+    result = Porcelain.shell(script)
+    if result.status == 0 do
+      :ok
+    else
+      Logger.error("Install script #{script} exited with status #{result.status}: #{inspect result.out}")
+      {:error, :install_hook_failed}
     end
   end
 
@@ -178,11 +205,17 @@ defmodule Relay.Bundle.InstallHelpers do
     end
   end
 
-  defp run_preinstall(nil, _) do
+  defp run_install_hook(nil, _) do
     :ok
   end
-  defp run_preinstall(preinstall, bf) do
-    preinstall.(bf)
+  defp run_install_hook(hook, bf) do
+    try do
+      hook.(bf)
+    rescue
+      e ->
+        Logger.error("Error running install hook for bundle #{bf.installed_path}: #{inspect e}")
+        {:error, :install_hook_failed}
+    end
   end
 
   defp triage_file(path) when is_binary(path) do

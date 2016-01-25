@@ -40,23 +40,43 @@ defmodule Relay.Bundle.ForeignSkinnyInstaller do
   end
 
   defp verify_executables(bundle_path, installed_path, config, :ok) do
-    add_to_catalog(bundle_path, config["bundle"]["name"], Helpers.verify_foreign_executables(installed_path, config))
+    execute_install_hook(bundle_path, installed_path, config["bundle"]["name"],
+                         Helpers.verify_foreign_executables(installed_path, config))
   end
   defp verify_executables(bundle_path, installed_path, config, error) do
     Logger.error("Error installing bundle #{bundle_path} to #{installed_path}: #{inspect error}")
     Helpers.cleanup_failed_activation(installed_path, config["bundle"]["name"])
   end
 
-
-  defp add_to_catalog(bundle_path, bundle_name, {:ok, config}) do
-    installed_path = installed_foreign_path(bundle_path)
-    start_bundle(bundle_path, config, installed_path, bundle_name, Catalog.install(config, installed_path))
+  defp execute_install_hook(bundle_path, installed_path, _bundle_name, {:ok, config}) do
+    bundle = config["bundle"]
+    case Map.get(bundle, "install") do
+      nil ->
+        add_to_catalog(bundle_path, config, :ok)
+      script ->
+        add_to_catalog(bundle_path, config, Helpers.run_install_script(installed_path, script))
+    end
   end
-  defp add_to_catalog(bundle_path, bundle_name, {:error, {cmd, :missing_file, files}}) do
+  defp execute_install_hook(bundle_path, installed_path, bundle_name, {:error, {cmd, :missing_file, files}}) do
     Logger.error("Foreign bundle #{bundle_path} missing files for #{cmd}: #{Enum.join(files, ",")}")
-    installed_path = installed_foreign_path(bundle_path)
     Helpers.cleanup_failed_activation(installed_path, bundle_name)
   end
+
+  defp add_to_catalog(bundle_path, config, :ok) do
+    installed_path = installed_foreign_path(bundle_path)
+    bundle_name = config["bundle"]["name"]
+    start_bundle(bundle_path, config, installed_path, bundle_name, Catalog.install(config, installed_path))
+  end
+  defp add_to_catalog(bundle_path, config, {:error, :install_hook_failed}) do
+    installed_path = installed_foreign_path(bundle_path)
+    Helpers.cleanup_failed_activation(installed_path, config["bundle"]["name"])
+  end
+  defp add_to_catalog(bundle_path, config, {:error, {:missing_file, script}}) do
+    Logger.error("Install script #{script} is missing for bundle #{bundle_path}")
+    installed_path = installed_foreign_path(bundle_path)
+    Helpers.cleanup_failed_activation(installed_path, config["bundle"]["name"])
+  end
+
 
   defp start_bundle(bundle_path, config, installed_path, bundle_name, :ok) do
     announce_bundle(bundle_path, config, bundle_name, Runner.start_foreign_bundle(bundle_name, installed_path))
