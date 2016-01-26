@@ -73,15 +73,23 @@ defmodule Relay.Bundle.Scanner do
   end
 
   defp prepare_for_cmd_configs(config_path) do
-    File.mkdir_p!(config_path)
+    build_command_config(config_path)
     ready({:ok, %__MODULE__{config_path: config_path}})
+  end
+
+  defp build_command_config(config_path) do
+     File.mkdir_p!(config_path)
+     # Build the operable dir if it isn't present
+     embedded_cmds_dir = Path.join(config_path, "operable")
+     File.mkdir_p!(embedded_cmds_dir)
+     File.touch!(Path.join(embedded_cmds_dir, "config.json"))
   end
 
   defp scan_for_configs(config_path) do
     case File.dir?(config_path) do
       false ->
         Logger.info("No config items have been found.")
-        File.mkdir_p!(config_path)
+        build_command_config(config_path)
       true ->
         Logger.info("Config items are present.")
     end
