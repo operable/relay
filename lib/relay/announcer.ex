@@ -97,17 +97,21 @@ defmodule Relay.Announcer do
   * `flush_period`: the amount of time between bundle announcement
     flushes. Defaults
     to #{@default_bundle_announcement_flush_period} milliseconds.
+  * `flush_timer`: reference to the timer that triggers the next
+    announcement flush.
   """
   @type loop_data :: %__MODULE__{mq_conn: Carrier.Messaging.Connection.connection(),
                                  topic: String.t,
                                  in_flight: %{announcement_id() => in_flight_entry()},
                                  pending: [bundle_config()],
-                                 flush_period: non_neg_integer()}
+                                 flush_period: non_neg_integer(),
+                                 flush_timer: :erlang.reference()}
   defstruct [mq_conn: nil,
              topic: "",
              in_flight: %{},
              pending: [],
-             flush_period: @default_bundle_announcement_flush_period]
+             flush_period: @default_bundle_announcement_flush_period,
+             flush_timer: nil]
 
   use Adz
 
@@ -129,6 +133,17 @@ defmodule Relay.Announcer do
   @spec announce(bundle_config()) :: :ok
   def announce(bundle_config),
     do: :gen_fsm.send_all_state_event(__MODULE__, {:announce, bundle_config})
+
+  @doc """
+  Trigger the sending of a new snapshot announcement.
+
+  Commonly used after deleting a bundle from the Relay, in order to
+  ensure that the bot has a consistent view of what the Relay
+  currently provides. (This is in place of a "delete" announcement,
+  which offers more ways to become inconsistent.)
+  """
+  def snapshot(),
+    do: :gen_fsm.send_all_state_event(__MODULE__, :snapshot)
 
   @doc """
   Start up a new #{inspect __MODULE__} process.
@@ -194,12 +209,12 @@ defmodule Relay.Announcer do
     end
   end
 
-  def announcing(event, %__MODULE__{pending: bundles, flush_period: period}=loop_data) when event in [:timeout, :flush_pending] do
+  def announcing(event, %__MODULE__{pending: bundles}=loop_data) when event in [:timeout, :flush_pending] do
     case bundles do
       [] ->
         # We don't have any pending announcements to make this time
         # around; hit snooze on our alarm clock!
-        schedule_next_flush(period)
+        loop_data = schedule_next_flush(loop_data)
         {:next_state, :announcing, loop_data}
       _ ->
         # We've accumulated some pending announcements; better send 'em out
@@ -211,8 +226,8 @@ defmodule Relay.Announcer do
         new_loop_data = loop_data
         |> mark_as_in_flight(id, bundles)
         |> clear_pending
+        |> schedule_next_flush
 
-        schedule_next_flush(period)
         {:next_state, :announcing, new_loop_data}
     end
   end
@@ -290,6 +305,21 @@ defmodule Relay.Announcer do
 
   def handle_event({:announce, config}, state, %__MODULE__{pending: pending}=loop_data),
     do: {:next_state, state, %{loop_data | pending: [config | pending]}}
+  def handle_event(:snapshot, _state, loop_data) do
+    # Any pending and in-flight announcements will necessarily be
+    # subsumed by the snapshot.
+    #
+    # Additionally, we want to cancel any pending flush, since it's
+    # otherwise possible that we could end up with multiple pending
+    # flushes, accumulating them with each new triggered snapshot.
+    loop_data = loop_data
+    |> clear_pending
+    |> cancel_all_in_flight
+    |> cancel_next_flush
+
+    {:next_state, :snapshotting, loop_data, 0}
+  end
+
 
   def handle_sync_event(_event, _from, state_name, loop_data),
     do: {:reply, :ignored, state_name, loop_data}
@@ -324,8 +354,15 @@ defmodule Relay.Announcer do
     |> Enum.map(fn({_, %{config: config}}) -> config end)
   end
 
-  defp schedule_next_flush(period),
-    do: :gen_fsm.send_event_after(period, :flush_pending)
+  defp schedule_next_flush(%__MODULE__{flush_period: period}=loop_data) do
+    ref = :gen_fsm.send_event_after(period, :flush_pending)
+    %{loop_data | flush_timer: ref}
+  end
+
+  defp cancel_next_flush(%__MODULE__{flush_timer: ref}=loop_data) when is_reference(ref) do
+    :gen_fsm.cancel_timer(ref)
+    %{loop_data | flush_timer: nil}
+  end
 
   defp publish(message, conn),
     do: Connection.publish(conn, message, routed_by: @relays_discovery_topic)
@@ -349,6 +386,14 @@ defmodule Relay.Announcer do
     :gen_fsm.cancel_timer(ref)
     %{loop_data | in_flight: Map.delete(in_flight, announcement_id)}
   end
+
+  # When we send a triggered snapshot (as opposed to the initial one
+  # sent at startup), we need to cancel all pending retry timers for
+  # currently in-flight announcements. We don't care to retry them, as
+  # we're going to be sending a snapshot, which will subsume those
+  # announcements anyway.
+  defp cancel_all_in_flight(%__MODULE__{in_flight: in_flight}=loop_data),
+    do: Enum.reduce(Map.keys(in_flight), loop_data, &mark_as_acknowledged(&2, &1))
 
   # Empty the list of pending bundles to announce; done after each
   # flush
