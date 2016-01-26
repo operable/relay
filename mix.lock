@@ -17,5 +17,5 @@
   "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "888d9df3eeeb16954bf0e68c9083a28baf6c92d5"]},
   "poison": {:hex, :poison, "1.5.0"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "git@github.com:operable/spanner", "e75469720cfc2331f73714d97a97d5ef44309257", [branch: "kevsmith/foreign-command-hooks"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "a1a32e038e41402d0f04635f43d8d9617be174e5", [ref: "a1a32e038e41402d0f04635f43d8d9617be174e5"]},
   "uuid": {:hex, :uuid, "1.0.1"}}
