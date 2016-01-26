@@ -9,7 +9,7 @@ defmodule Relay.Bundle.Scanner do
   alias Relay.Bundle.Runner
   alias Relay.Announcer
 
-  defstruct [:pending_path, :timer]
+  defstruct [:pending_path, :config_path, :timer]
 
   def start_link(),
   do: GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -19,12 +19,34 @@ defmodule Relay.Bundle.Scanner do
   end
 
   def init(_) do
+    case init_pending do
+      {:ok, status} ->
+        init_command_config(status)
+      error -> error
+    end
+  end
+
+  def init_pending() do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
     case File.exists?(pending_path) do
       false ->
         prepare_for_uploads(pending_path)
       true ->
         scan_for_uploads(pending_path)
+    end
+  end
+
+  def init_command_config(state) do
+    command_config_path = Application.get_env(:relay, :command_config_root)
+    status = case File.exists?(command_config_path) do
+      false ->
+        prepare_for_cmd_configs(command_config_path)
+      true ->
+        scan_for_configs(command_config_path)
+    end
+    case status do
+      {:ok, config} -> {:ok, %{state | config_path: config.config_path}}
+      _ -> state
     end
   end
 
@@ -48,6 +70,30 @@ defmodule Relay.Bundle.Scanner do
   defp prepare_for_uploads(pending_path) do
     File.mkdir_p!(pending_path)
     ready({:ok, %__MODULE__{pending_path: pending_path}})
+  end
+
+  defp prepare_for_cmd_configs(config_path) do
+    build_command_config(config_path)
+    ready({:ok, %__MODULE__{config_path: config_path}})
+  end
+
+  defp build_command_config(config_path) do
+     File.mkdir_p!(config_path)
+     # Build the operable dir if it isn't present
+     embedded_cmds_dir = Path.join(config_path, "operable")
+     File.mkdir_p!(embedded_cmds_dir)
+     File.touch!(Path.join(embedded_cmds_dir, "config.json"))
+  end
+
+  defp scan_for_configs(config_path) do
+    case File.dir?(config_path) do
+      false ->
+        Logger.info("No config items have been found.")
+        build_command_config(config_path)
+      true ->
+        Logger.info("Config items are present.")
+    end
+    ready({:ok, %__MODULE__{config_path: config_path}})
   end
 
   defp scan_for_uploads(pending_path) do
@@ -74,6 +120,14 @@ defmodule Relay.Bundle.Scanner do
     length(pending_foreign_bundle_files()) > 0
   end
 
+  defp set_command_config(bundle_path, ext) do
+    config_path = Application.get_env(:relay, :command_config_root)
+    bundle = Path.basename(bundle_path, ext)
+    config_bundle_loc = Path.join(config_path, bundle)
+    File.mkdir_p!(config_bundle_loc)
+    File.touch!(Path.join(config_bundle_loc, "config.json"))
+  end
+
   defp pending_bundle_files() do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
     Path.wildcard(Path.join(pending_path, "*#{Spanner.bundle_extension()}"))
@@ -91,8 +145,10 @@ defmodule Relay.Bundle.Scanner do
     cond do
       String.ends_with?(bundle_path, Spanner.bundle_extension()) ->
         install_elixir_bundle(bundle_path)
+        set_command_config(bundle_path, Spanner.bundle_extension())
       String.ends_with?(bundle_path, Spanner.foreign_bundle_extension()) ->
         install_foreign_bundle(bundle_path)
+        set_command_config(bundle_path, Spanner.foreign_bundle_extension())
     end
     install_bundles(t)
   end

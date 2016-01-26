@@ -9,4 +9,5 @@
 /test/scratch
 erl_crash.dump
 *.ez
+*.swp
 Mnesia.*
