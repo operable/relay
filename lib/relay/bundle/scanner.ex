@@ -7,6 +7,7 @@ defmodule Relay.Bundle.Scanner do
   alias Relay.Bundle.ElixirInstaller
   alias Relay.Bundle.ForeignInstaller
   alias Relay.Bundle.ForeignSkinnyInstaller
+  alias Relay.Bundle.InstallHelpers, as: Helpers
 
   defstruct [:pending_path, :timer]
 
@@ -89,14 +90,15 @@ defmodule Relay.Bundle.Scanner do
   defp install_bundles([bundle_path|t]) do
     try do
       cond do
-        String.ends_with?(bundle_path, Spanner.bundle_extension())
+        String.ends_with?(bundle_path, Spanner.bundle_extension()) ->
           install_bundle_file(bundle_path)
-        String.ends_with?(bundle_path, Spanner.skinny_bundle_extension())
+        String.ends_with?(bundle_path, Spanner.skinny_bundle_extension()) ->
           ForeignSkinnyInstaller.install(bundle_path)
       end
     rescue
       e ->
         Logger.error("Unexpected error occurred while installing bundle #{bundle_path}: #{inspect e}\n #{inspect System.stacktrace()}")
+        Helpers.cleanup_failed_activation(bundle_path)
     end
     install_bundles(t)
   end
