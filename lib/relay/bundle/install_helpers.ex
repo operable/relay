@@ -125,6 +125,75 @@ defmodule Relay.Bundle.InstallHelpers do
     end
   end
 
+  # TODO: Need to uninstall whatever executables foreign bundles may bring
+  @doc """
+  Removes all trace of the given bundle from the system and
+  synchronizes state with the bot.
+  """
+  def deactivate(bundle_name) do
+    case bundle_file(bundle_name) do
+      {:ok, bundle_file, installed_path} ->
+        case lock_bundle(bundle_file) do
+          {:ok, locked_path} ->
+            :ok = Catalog.uninstall(bundle_name)
+
+            :ok = Runner.stop_bundle(bundle_name)
+
+            # Delete the code
+            unless is_nil(installed_path) do
+              # Don't do this for skinny bundles
+              :ok = remove_bundle_from_code_path(installed_path)
+              File.rm_rf(installed_path)
+            end
+
+            File.rm_rf(locked_path)
+
+            # Need to tell the bot everything we have now.
+            :ok = Announcer.snapshot
+          error ->
+            Logger.error("Could not lock bundle `#{bundle_name}` for deletion: #{inspect error}")
+            error
+        end
+      {:error, {:not_installed, _}} = error ->
+        Logger.error("The bundle `#{bundle_name}` is not installed")
+        error
+      {:error, {:no_bundle_file, _}} = error ->
+        Logger.error("The bundle file for `#{bundle_name}` was not found")
+        error
+    end
+  end
+
+  # Return the path to the bundle file (i.e., the zip file), as well
+  # as the installed bundle directory.
+  #
+  # Returns an error tuple if no such bundle is installed, or the zip
+  # file cannot be found.
+  #
+  # The "installed path" will be nil for skinny bundles.
+  defp bundle_file(bundle_name) do
+    case Catalog.installed_path(bundle_name) do
+      nil ->
+        {:error, {:not_installed, bundle_name}}
+      installed_path ->
+        if String.ends_with?(installed_path, Spanner.skinny_bundle_extension) do
+          {:ok, installed_path, nil}
+        else
+          installed_bundle_file = installed_path <> Spanner.bundle_extension
+          if File.exists?(installed_bundle_file) do
+            {:ok, installed_bundle_file, installed_path}
+          else
+            {:error, {:no_bundle_file, bundle_name}}
+          end
+        end
+    end
+  end
+
+  # Ideally, this might take place in a shutdown hook somewhere
+  defp remove_bundle_from_code_path(installed_path) do
+    _ = Code.delete_path(Path.join(installed_path, "ebin"))
+    :ok
+  end
+
   defp run_script(script) do
     result = Porcelain.shell(script)
     if result.status == 0 do

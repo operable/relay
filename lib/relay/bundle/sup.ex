@@ -55,7 +55,7 @@ defmodule Relay.Bundle.Sup do
 
   # Each bundle should be unique in the system. Giving them a unique
   # name also helps identify and reference the process.
-  defp supervisor_name(name),
+  def supervisor_name(name),
     do: String.to_atom("bundle_#{name}_sup")
 
   defp on_code_path?(path) when is_binary(path) do

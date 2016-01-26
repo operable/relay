@@ -27,6 +27,21 @@ defmodule Relay.Bundle.Runner do
   end
 
   @doc """
+  Shutdown the supervision tree for the given bundle.
+  """
+  def stop_bundle(bundle_name) do
+    # TODO: have this process create the name instead?
+    process_name = Relay.Bundle.Sup.supervisor_name(bundle_name)
+    case Process.whereis(process_name) do
+      nil ->
+        Logger.error("Could not find process #{process_name}!")
+        {:error, :not_found}
+      pid ->
+        :ok = Supervisor.terminate_child(__MODULE__, pid)
+    end
+  end
+
+  @doc """
   Start up a new foreign bundle under this supervisor.
   """
   def start_foreign_bundle(name, installed_path) do

@@ -31,25 +31,6 @@ structure, unlocking and expanding bundle files on disk.
     end
   end
 
-  @doc "Opens an installed bundle file"
-  @spec open_installed(String.t()) :: {:ok, %__MODULE__{}} | {:error, term()}
-  def open_installed(installed_path) do
-    case File.dir?(installed_path) do
-      false ->
-        {:error, :bad_path}
-      true ->
-        name = Path.basename(installed_path)
-        cog_path = Path.join([installed_path, "..", "#{name}#{Spanner.bundle_extension()}"])
-        case :zip.zip_open(cl(cog_path), @zip_options) do
-          {:ok, fd} ->
-            {:ok, %__MODULE__{path: cog_path, installed_path: installed_path,
-                              fd: fd, name: name}}
-          error ->
-            error
-        end
-    end
-  end
-
   @doc "Extracts and parses `manifest.json`."
   @spec manifest(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def manifest(%__MODULE__{fd: fd, name: name}) do
