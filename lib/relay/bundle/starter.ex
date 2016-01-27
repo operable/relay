@@ -35,7 +35,8 @@ defmodule Relay.Bundle.Starter do
   end
 
   defp foreign_bundle?(path) do
-    String.ends_with?(path, ".json")
+    ebin_dir = Path.join(path, "ebin")
+    String.ends_with?(path, ".json") or File.dir?(ebin_dir) == false
   end
 
 end
