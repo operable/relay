@@ -1,4 +1,4 @@
-%{"adz": {:git, "git@github.com:operable/adz", "07ba970e0bec955f1f3ed1c4771511139924c7fd", [ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"]},
+%{"adz": {:git, "git@github.com:operable/adz", "ccb8d704273df616fa57e45c66275e59feeace46", [ref: "ccb8d704273df616fa57e45c66275e59feeace46"]},
   "carrier": {:git, "git@github.com:operable/carrier", "fa21dab921ba699d52005fca51b67cc1fa3b3e54", [ref: "fa21dab921ba699d52005fca51b67cc1fa3b3e54"]},
   "earmark": {:hex, :earmark, "0.2.0"},
   "emqttc": {:git, "https://github.com/emqtt/emqttc.git", "9c989657a0e9beaf29ebef64d019c46381cb3599", [branch: "master"]},
@@ -17,5 +17,5 @@
   "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "888d9df3eeeb16954bf0e68c9083a28baf6c92d5"]},
   "poison": {:hex, :poison, "1.5.0"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "git@github.com:operable/spanner", "a1a32e038e41402d0f04635f43d8d9617be174e5", [ref: "a1a32e038e41402d0f04635f43d8d9617be174e5"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "94292cd9ef27253f6fd50ae5a23f2100767ed1d6", [tag: "0.1-rc1"]},
   "uuid": {:hex, :uuid, "1.0.1"}}

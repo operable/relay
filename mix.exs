@@ -43,7 +43,6 @@ defmodule Relay.Mixfile do
      {:ex_doc, "~> 0.11", only: :dev},
      {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
-     {:adz, git: "git@github.com:operable/adz", ref: "07ba970e0bec955f1f3ed1c4771511139924c7fd"},
      {:poison, "~> 1.5.0"},
      {:uuid, "~> 1.0.1"},
 
@@ -57,7 +56,7 @@ defmodule Relay.Mixfile do
      #
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
-     {:spanner, git: "git@github.com:operable/spanner", ref: "a1a32e038e41402d0f04635f43d8d9617be174e5"},
+     {:spanner, git: "git@github.com:operable/spanner", tag: "0.1-rc1"},
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
      # running ExUnit; Relay will not start unless there is a message
