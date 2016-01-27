@@ -131,25 +131,38 @@ defmodule Relay.Bundle.InstallHelpers do
   synchronizes state with the bot.
   """
   def deactivate(bundle_name) do
+    Logger.info("Initiating deactivation of bundle `#{bundle_name}`")
     case bundle_file(bundle_name) do
       {:ok, bundle_file, installed_path} ->
         case lock_bundle(bundle_file) do
           {:ok, locked_path} ->
             :ok = Catalog.uninstall(bundle_name)
-
             :ok = Runner.stop_bundle(bundle_name)
 
             # Delete the code
             unless is_nil(installed_path) do
               # Don't do this for skinny bundles
               :ok = remove_bundle_from_code_path(installed_path)
-              File.rm_rf(installed_path)
+              case File.rm_rf(installed_path) do
+                {:ok, []} ->
+                  Logger.warn("Could not find `#{installed_path}` to delete!")
+                {:ok, _files} ->
+                  Logger.info("Deleted `#{installed_path}` for bundle `#{bundle_name}`")
+                error ->
+                  Logger.error("Error deleting `#{installed_path}`: #{inspect error}")
+              end
             end
 
-            File.rm_rf(locked_path)
+            case File.rm_rf(locked_path) do
+              {:ok, [^locked_path]} ->
+                Logger.info("Deleted bundle file for `#{bundle_name}`")
+              error ->
+                Logger.error("Error deleting `#{locked_path}`: #{inspect error}")
+            end
 
             # Need to tell the bot everything we have now.
             :ok = Announcer.snapshot
+            Logger.info("Bundle `#{bundle_name}` successfully deactivated")
           error ->
             Logger.error("Could not lock bundle `#{bundle_name}` for deletion: #{inspect error}")
             error
@@ -190,7 +203,10 @@ defmodule Relay.Bundle.InstallHelpers do
 
   # Ideally, this might take place in a shutdown hook somewhere
   defp remove_bundle_from_code_path(installed_path) do
-    _ = Code.delete_path(Path.join(installed_path, "ebin"))
+    code_dir = Path.join(installed_path, "ebin")
+    if Code.delete_path(code_dir) do
+      Logger.info("Removed `#{code_dir}` from code path")
+    end
     :ok
   end
 
