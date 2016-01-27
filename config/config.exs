@@ -17,4 +17,8 @@ config :relay, pending_bundle_root: Path.join([File.cwd!, "pending"])
 config :relay, triage_bundle_root: Path.join([File.cwd!, "failed"])
 config :relay, bundle_scan_interval_secs: 30
 
+config :spanner, :command_config_root,
+  System.get_env("COG_COMMAND_CONFIG_ROOT")
+
+
 import_config "#{Mix.env}.exs"
