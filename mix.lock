@@ -17,5 +17,5 @@
   "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "888d9df3eeeb16954bf0e68c9083a28baf6c92d5"]},
   "poison": {:hex, :poison, "1.5.0"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "git@github.com:operable/spanner", "023d0bce5e6d938682a79c597ea704d4387e440a", [branch: "kevsmith/foreign-command-fixes"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "6df98a3d410790b09552d8ba2030d44767936d99", [branch: "kevsmith/foreign-command-fixes"]},
   "uuid": {:hex, :uuid, "1.0.1"}}

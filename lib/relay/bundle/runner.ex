@@ -45,7 +45,12 @@ defmodule Relay.Bundle.Runner do
   Start up a new foreign bundle under this supervisor.
   """
   def start_foreign_bundle(name, installed_path) do
-    Supervisor.start_child(__MODULE__, [[bundle: name, foreign: installed_path]])
+    bundle_dir = if String.ends_with?(installed_path, ".json") do
+      Path.join("/tmp", name)
+    else
+      installed_path
+    end
+    Supervisor.start_child(__MODULE__, [[bundle: name, foreign: bundle_dir]])
   end
 
 end

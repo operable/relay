@@ -20,13 +20,23 @@ defmodule Relay.Bundle.Sup do
                           name: supervisor_name(bundle))
   end
 
-  def init([bundle: bundle_name, foreign: _installed_path]) do
+  def init([bundle: bundle_name, foreign: bundle_dir]) do
+    if File.dir?(bundle_dir) == false do
+      try do
+        File.mkdir_p!(bundle_dir)
+      rescue
+        e ->
+          Logger.error("Error creating working directory #{bundle_dir} for bundle #{bundle_name}: #{inspect e}")
+          reraise e, System.stacktrace
+      end
+    end
     {:ok, config} = Catalog.bundle_config(bundle_name)
     commands = config["commands"]
     children = for command <- commands do
       name = command["name"]
       executable = command["executable"]
-      args = [bundle: bundle_name, command: name, executable: executable]
+      args = [bundle: bundle_name, bundle_dir: bundle_dir, command: name,
+              executable: executable]
       id = foreign_id(bundle_name, name)
       worker(Spanner.GenCommand, [bundle_name, name, Spanner.GenCommand.Foreign, args], id: id)
     end
