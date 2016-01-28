@@ -35,8 +35,9 @@ defmodule Relay.Bundle.Sup do
     children = for command <- commands do
       name = command["name"]
       executable = command["executable"]
+      env_vars = Map.get(command, "env_vars", %{})
       args = [bundle: bundle_name, bundle_dir: bundle_dir, command: name,
-              executable: executable]
+              executable: executable, env: env_vars]
       id = foreign_id(bundle_name, name)
       worker(Spanner.GenCommand, [bundle_name, name, Spanner.GenCommand.Foreign, args], id: id)
     end
