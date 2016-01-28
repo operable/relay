@@ -285,9 +285,9 @@ defmodule Relay.Bundle.InstallHelpers do
       hook.(bf)
     rescue
       e ->
-        Logger.error("Error running install hook for bundle #{bf.installed_path}: #{inspect e}\n")
+        Logger.error("Error running install hook for bundle #{bf.installed_path}: #{inspect e}")
         for line <- System.stacktrace() do
-          Logger.error("#{inspect line}")
+          Logger.error(inspect(line))
         end
         {:error, :install_hook_failed}
     end
