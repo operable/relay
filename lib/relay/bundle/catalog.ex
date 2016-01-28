@@ -121,6 +121,7 @@ defmodule Relay.Bundle.Catalog do
   end
   def handle_call({:uninstall, bundle_name}, _from, %__MODULE__{db: db}=state) do
     :dets.delete(db, bundle_name)
+    Logger.info("Removed bundle `#{bundle_name}` from catalog")
     {:reply, :ok, state}
   end
   def handle_call(_, _from, state) do

@@ -38,6 +38,8 @@ defmodule Relay.Bundle.Runner do
         {:error, :not_found}
       pid ->
         :ok = Supervisor.terminate_child(__MODULE__, pid)
+        Logger.info("Terminated `#{process_name}` supervisor for bundle `#{bundle_name}`")
+        :ok
     end
   end
 

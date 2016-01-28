@@ -187,6 +187,9 @@ defmodule Relay.Announcer do
     id = announcement_id
     bundles = current_bundles
 
+    bundle_names = Enum.map(bundles, fn(%{"bundle" => %{"name" => name}}) -> name end)
+    Logger.info("Sending snapshot for bundles: #{inspect bundle_names}")
+
     snapshot(loop_data.topic, id, bundles)
     |> publish(loop_data.mq_conn)
 
