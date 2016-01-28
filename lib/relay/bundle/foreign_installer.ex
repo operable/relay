@@ -4,7 +4,7 @@ defmodule Relay.Bundle.ForeignInstaller do
 
   require Logger
 
-  alias Relay.Bundle.BundleFile
+  alias Relay.BundleFile
   alias Relay.Bundle.Runner
   alias Relay.Bundle.InstallHelpers, as: Helpers
 

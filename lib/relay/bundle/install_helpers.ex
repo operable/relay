@@ -195,11 +195,13 @@ defmodule Relay.Bundle.InstallHelpers do
   end
 
   defp run_script(script) do
-    result = Porcelain.shell(script)
+    File.chmod(script, 0o755)
+    result = Porcelain.shell(script, err: :out)
     if result.status == 0 do
+      Logger.info("Install script #{script} completed: " <> result.out)
       :ok
     else
-      Logger.error("Install script #{script} exited with status #{result.status}: #{inspect result.out}")
+      Logger.error("Install script #{script} exited with status #{result.status}: " <> result.out)
       {:error, :install_hook_failed}
     end
   end
@@ -216,6 +218,7 @@ defmodule Relay.Bundle.InstallHelpers do
       if File.dir?(installed_path) do
         private_executable = Path.join(installed_path, executable)
         if File.regular?(private_executable) do
+          File.chmod(private_executable, 0o755)
           cmd = Map.put(cmd, "executable", private_executable)
           verify_foreign_executables(installed_path, config, t, [cmd|accum])
         else
@@ -283,6 +286,9 @@ defmodule Relay.Bundle.InstallHelpers do
     rescue
       e ->
         Logger.error("Error running install hook for bundle #{bf.installed_path}: #{inspect e}")
+        for line <- System.stacktrace() do
+          Logger.error(inspect(line))
+        end
         {:error, :install_hook_failed}
     end
   end
