@@ -59,7 +59,7 @@ defmodule Relay.Bundle.Scanner do
         if pending_files? do
           Logger.info("Pending bundles will be installed shortly.")
         else
-          Logger.info("No pending Elixir or foreign bundles found.")
+          Logger.info("No pending bundles found.")
         end
         ready({:ok, %__MODULE__{pending_path: pending_path}})
     end
