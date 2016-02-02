@@ -4,7 +4,6 @@ defmodule Relay.Bundle.Scanner do
   use Adz
 
   alias Relay.BundleFile
-  alias Relay.Bundle.ElixirInstaller
   alias Relay.Bundle.ForeignInstaller
   alias Relay.Bundle.ForeignSkinnyInstaller
   alias Relay.Bundle.InstallHelpers, as: Helpers
@@ -110,14 +109,7 @@ defmodule Relay.Bundle.Scanner do
           {:ok, config} ->
             BundleFile.close(bf)
             bundle = config["bundle"]
-            case config["bundle"]["type"] do
-              "elixir" ->
-                ElixirInstaller.install(bundle_path)
-              nil ->
-                ElixirInstaller.install(bundle_path)
-              "foreign" ->
-                ForeignInstaller.install(bundle_path)
-            end
+            ForiegnInstaller.install(bundle_path)
           error ->
             BundleFile.close(bf)
             Logger.error("Error extracting bundle config from #{bundle_path}: #{inspect error}")
