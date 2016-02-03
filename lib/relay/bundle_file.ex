@@ -11,7 +11,7 @@ structure, unlocking and expanding bundle files on disk.
   Record.defrecord(:file_info, Record.extract(:file_info, from_lib: "kernel/include/file.hrl"))
   Record.defrecord(:zip_file, Record.extract(:zip_file, from_lib: "stdlib/include/zip.hrl"))
 
-  defstruct [:name, :path, :fd, :installed_path]
+  defstruct [:name, :path, :fd, :installed_path, :files]
 
   @zip_options [:cooked, :memory]
 
@@ -25,9 +25,26 @@ structure, unlocking and expanding bundle files on disk.
     |> String.replace(Regex.compile!("#{bundle_extension}.locked$"), "")
     case :zip.zip_open(cl(path), @zip_options) do
       {:ok, fd} ->
-        {:ok, %__MODULE__{path: path, fd: fd, name: name}}
+        bf = %__MODULE__{path: path, fd: fd, name: name}
+        {:ok, %{bf | files: list_files(bf)}}
       error ->
         error
+    end
+  end
+
+  @doc "Returns true if file reference is a bundle file handle"
+  @spec bundle_file?(term()) :: boolean()
+  def bundle_file?(%__MODULE__{}), do: true
+  def bundle_file?(_), do: false
+
+  @doc "Returns internal path to file if it exists"
+  @spec find_file(%__MODULE__{}, String.t()) :: String.t() | boolean()
+  def find_file(%__MODULE__{name: name, files: files}, path) do
+    updated = Path.join(name, path)
+    if Enum.member?(files, updated) do
+      path
+    else
+      nil
     end
   end
 

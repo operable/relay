@@ -18,12 +18,7 @@ defmodule Relay.Bundle.Starter do
     Logger.info("Starting installed command bundles")
     for bundle <- Catalog.list_bundles() do
       installed_path = Catalog.installed_path(bundle)
-      start_fn = if foreign_bundle?(installed_path) do
-        &Runner.start_foreign_bundle/2
-      else
-        &Runner.start_bundle/2
-      end
-      case start_fn.(bundle, installed_path) do
+      case Runner.start_bundle(bundle, installed_path) do
         {:ok, _} ->
           Logger.info("Bundle #{bundle} started")
         {:error, reason} ->
@@ -32,11 +27,6 @@ defmodule Relay.Bundle.Starter do
     end
     # TODO: error out instead of anything failed to come up?
     :ignore
-  end
-
-  defp foreign_bundle?(path) do
-    ebin_dir = Path.join(path, "ebin")
-    String.ends_with?(path, ".json") or File.dir?(ebin_dir) == false
   end
 
 end
