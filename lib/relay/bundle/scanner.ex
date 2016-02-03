@@ -7,7 +7,7 @@ defmodule Relay.Bundle.Scanner do
 
   @behaviour :gen_fsm
 
-  defstruct [:pending_path, :pending_bundles, :installers, :first_time]
+  defstruct [:pending_path, :pending_bundles, :installers]
 
   def start_link(),
   do: :gen_fsm.start_link({:local, __MODULE__}, __MODULE__, [], [])
@@ -32,22 +32,15 @@ defmodule Relay.Bundle.Scanner do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
     :erlang.process_flag(:trap_exit, true)
     report_scan_interval()
-    {:ok, :scanning, %__MODULE__{pending_path: pending_path, installers: [],
-                                 first_time: true}}
+    {:ok, :scanning, %__MODULE__{pending_path: pending_path, installers: []}}
   end
 
   def scanning(event, state) when event in [:scan, :timeout] do
     {state_name, timeout, state} = case pending_bundle_files() do
                                      [] ->
-                                       state = if state.first_time == true do
-                                                 Logger.info("All bundles have been deployed.")
-                                                 %{state | first_time: false}
-                                               else
-                                                 state
-                                               end
                                        {:scanning, scan_interval(), state}
                                      files ->
-                                       {:installing, 0, %{state | first_time: false, pending_bundles: files}}
+                                       {:installing, 0, %{state | pending_bundles: files}}
                                    end
     {:next_state, state_name, state, timeout}
   end
@@ -104,7 +97,7 @@ defmodule Relay.Bundle.Scanner do
                   %__MODULE__{pending_bundles: installers}=state) when state_name in [:installing, :wait_for_installers] do
     case Map.get(installers, sender) do
       nil ->
-        {:next_state, :waiting_for_installers, state}
+        {:next_state, :wait_for_installers, state}
       file_name ->
         Logger.error("Installer for bundle #{file_name} crashed: #{inspect reason}")
         cleanup_failed_install(guess_bundle_name(file_name))
@@ -112,7 +105,7 @@ defmodule Relay.Bundle.Scanner do
         if Enum.empty?(installers) do
           {:next_state, :scanning, %{state | pending_bundles: []}, scan_interval()}
         else
-          {:next_state, :waiting_for_installers, %{state | pending_bundles: installers}}
+          {:next_state, :wait_for_installers, %{state | pending_bundles: installers}}
         end
     end
   end
@@ -121,7 +114,7 @@ defmodule Relay.Bundle.Scanner do
   end
 
   def terminate(_reason, _state_name, _state) do
-    :ok
+    IO.inspect System.stacktrace
   end
 
   defp scan_interval() do
