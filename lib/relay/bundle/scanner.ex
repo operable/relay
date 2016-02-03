@@ -106,7 +106,7 @@ defmodule Relay.Bundle.Scanner do
       nil ->
         {:next_state, :waiting_for_installers, state}
       file_name ->
-        Logger.error("Installer for bundle #{file_name} crashed")
+        Logger.error("Installer for bundle #{file_name} crashed: #{inspect reason}")
         cleanup_failed_install(guess_bundle_name(file_name))
         installers = Map.delete(installers, sender)
         if Enum.empty?(installers) do
