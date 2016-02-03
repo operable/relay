@@ -56,13 +56,13 @@ defmodule Relay.Bundle.Installer do
 
   defp try_install(bundle_path) do
     if String.ends_with?(bundle_path, ".json.locked") do
-      try_skinny_install(bundle_path)
+      try_simple_install(bundle_path)
     else
       try_full_install(bundle_path)
     end
   end
 
-  defp try_skinny_install(bundle_path) do
+  defp try_simple_install(bundle_path) do
     case File.read(bundle_path) do
       {:ok, contents} ->
         case Poison.decode(contents) do
@@ -169,7 +169,7 @@ defmodule Relay.Bundle.Installer do
       :ok ->
         register_and_start_bundle(install_path, config)
       error ->
-        Logger.error("Error installing skinny bundle #{bf} to #{install_path}: #{inspect error}")
+        Logger.error("Error installing simple bundle #{bf} to #{install_path}: #{inspect error}")
         {:error, bf}
     end
   end
@@ -338,8 +338,8 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  def build_install_dest(bundle_root, config, skinny? \\ false) do
-    ext = if skinny? do
+  defp build_install_dest(bundle_root, config, simple? \\ false) do
+    ext = if simple? do
       ".json"
     else
       ""
@@ -349,7 +349,7 @@ defmodule Relay.Bundle.Installer do
     Path.join([bundle_root, name])
   end
 
-  def lock_bundle(bundle_path) do
+  defp lock_bundle(bundle_path) do
     bundle_root = Application.get_env(:relay, :bundle_root)
     locked_file = Path.basename(bundle_path) <> ".locked"
     locked_path = Path.join(bundle_root, locked_file)
