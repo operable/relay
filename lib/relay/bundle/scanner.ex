@@ -102,10 +102,6 @@ defmodule Relay.Bundle.Scanner do
 
   def handle_info({:EXIT, sender, reason}, state_name,
                   %__MODULE__{pending_bundles: installers}=state) when state_name in [:installing, :wait_for_installers] do
-    if sender == self() do
-      :erlang.process_flag(:trap_exit, false)
-      exit(reason)
-    end
     case Map.get(installers, sender) do
       nil ->
         {:next_state, :waiting_for_installers, state}
