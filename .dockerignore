@@ -1,4 +1,4 @@
 .git
-/_build
-/deps
-/data
+_build
+deps
+data

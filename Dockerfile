@@ -8,12 +8,13 @@ RUN chmod 0400 /home/operable/.ssh/id_rsa
 RUN chown -R operable:operable /home/operable/.ssh
 USER operable
 
-# Setup Cog
+# Setup Relay
 ENV MIX_ENV prod
 RUN mkdir -p /app
 WORKDIR /app
 
 COPY mix.exs mix.lock /app/
+COPY config /app/config/
 RUN mix deps.get && mix deps.compile
 
 COPY . /app/
