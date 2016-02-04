@@ -30,6 +30,7 @@ defmodule Relay.Bundle.Scanner do
 
   def init(_) do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
+    File.mkdir_p!(pending_path)
     :erlang.process_flag(:trap_exit, true)
     report_scan_interval()
     {:ok, :scanning, %__MODULE__{pending_path: pending_path, installers: []}}
