@@ -1,3 +1,6 @@
+
+Code.load_file(Path.join([__DIR__, "config", "helpers.exs"]))
+
 defmodule Relay.Mixfile do
   use Mix.Project
 
