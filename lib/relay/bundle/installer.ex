@@ -29,7 +29,7 @@ defmodule Relay.Bundle.Installer do
         if result == :error do
           reset_lock(bundle_path, locked_path)
           if BundleFile.bundle_file?(bundle_file) do
-            config = BundleFile.config(bundle_file)
+            {:ok, config} = BundleFile.config(bundle_file)
             Scanner.signal_failure(bundle: config["bundle"]["name"])
           else
             Scanner.signal_failure(path: bundle_file)
