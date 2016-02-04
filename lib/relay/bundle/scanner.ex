@@ -36,19 +36,20 @@ defmodule Relay.Bundle.Scanner do
     {:ok, :scanning, %__MODULE__{pending_path: pending_path, installers: []}}
   end
 
-  def scanning(event, state) when event in [:scan, :timeout] do
-    {state_name, timeout, state} = case pending_bundle_files() do
-                                     [] ->
-                                       {:scanning, scan_interval(), state}
-                                     files ->
-                                       {:installing, 0, %{state | pending_bundles: files}}
-                                   end
-    {:next_state, state_name, state, timeout}
+  def scanning(:scan, state) do
+    case pending_bundle_files() do
+      [] ->
+        queue_next_scan()
+        {:next_state, :scanning, state}
+      files ->
+        {:next_state, :installing, %{state | pending_bundles: files}, 0}
+    end
   end
 
   def installing(:timeout, %__MODULE__{pending_bundles: pending_bundles}=state) do
     installers = Enum.reduce(pending_bundles, %{},
       fn(bundle_file, accum) -> {:ok, pid} = Installer.start_link(bundle_file)
+                                Logger.debug("Installer #{inspect pid} installing #{bundle_file}")
                                 Map.put(accum, pid, bundle_file) end)
     {:next_state, :wait_for_installers, %{state | pending_bundles: installers}}
   end
@@ -61,7 +62,8 @@ defmodule Relay.Bundle.Scanner do
         Logger.info("Bundle file #{file_name} has been successfully deployed to #{dest}")
         installers = Map.delete(installers, installer)
         if Enum.empty?(installers) do
-          {:next_state, :scanning, %{state | pending_bundles: []}, scan_interval()}
+          queue_next_scan()
+          {:next_state, :scanning, %{state | pending_bundles: []}}
         else
           {:next_state, :wait_for_installers, %{state | pending_bundles: installers}}
         end
@@ -75,7 +77,8 @@ defmodule Relay.Bundle.Scanner do
         cleanup_failed_install(name)
         installers = Map.delete(installers, installer)
         if Enum.empty?(installers) do
-          {:next_state, :scanning, %{state | pending_bundles: []}, scan_interval()}
+          queue_next_scan()
+          {:next_state, :scanning, %{state | pending_bundles: []}}
         else
           {:next_state, :wait_for_installers, %{state | pending_bundles: installers}}
         end
@@ -109,6 +112,10 @@ defmodule Relay.Bundle.Scanner do
           {:next_state, :wait_for_installers, %{state | pending_bundles: installers}}
         end
     end
+  end
+  def handle_info(:current_state, state_name, state) do
+    Logger.debug("#{state_name}")
+    {:next_state, state_name, state}
   end
   def handle_info(_event, state_name, state) do
     {:next_state, state_name, state}
@@ -151,77 +158,57 @@ defmodule Relay.Bundle.Scanner do
   end
 
   defp cleanup_failed_skinny_bundle(file_name) do
-    bundle_root = Application.get_env(:relay, :bundle_root)
     [bundle_name|_] = String.split(file_name, ".", parts: 2)
     Catalog.uninstall(Path.basename(bundle_name))
-    unless triage_locked_bundle(file_name) do
-      triage_bundle(file_name)
-    end
-    File.rm_rf(Path.join(bundle_root, bundle_name))
+    triage_bundle(file_name)
   end
 
   defp cleanup_failed_bundle(bundle_name) do
     bundle_root = Application.get_env(:relay, :bundle)
     Catalog.uninstall(bundle_name)
-    unless triage_locked_bundle(bundle_name) do
-      triage_bundle(bundle_name)
-    end
+    triage_bundle(bundle_name)
     File.rm_rf(Path.join(bundle_root, bundle_name))
   end
 
-  defp triage_locked_bundle(bundle_name) do
+  defp triage_bundle(bundle) do
     pending_root = Application.get_env(:relay, :pending_bundle_root)
+    bundle_root = Application.get_env(:relay, :bundle_root)
     triage_root = Application.get_env(:relay, :triage_bundle_root)
-    locked_file = cond do
-      String.ends_with?(bundle_name, ".json") ->
-        bundle_name <> ".locked"
-      String.ends_with?(bundle_name, ".json.locked") ->
-        bundle_name
-      true ->
-        Path.join(pending_root, bundle_name <> ".cog.locked")
-    end
-    if File.regular?(locked_file) do
-      triage_file = make_triage_file(triage_root, bundle_name)
-      case File.rename(locked_file, triage_file) do
-        :ok ->
-          Logger.info("Failed bundle #{bundle_name} triaged to #{triage_file}")
-          true
-        _error ->
-          Logger.error("Error triaging locked bundle #{locked_file} to #{triage_file}")
-          case File.rm_rf(locked_file) do
-            {:ok, _} ->
-              Logger.info("Stubborn locked bundle #{locked_file} has been deleted")
-              true
-            error ->
-              Logger.error("Deleting stubborn locked bundle #{locked_file} failed: #{inspect error}")
-              false
-          end
-      end
+    triage_file = make_triage_file(triage_root, bundle)
+
+    if File.exists?(bundle) do
+      triage_bundle(bundle, triage_file)
     else
-      false
+      pending_file = build_bundle_path(pending_root, bundle)
+      installed_file = build_bundle_path(bundle_root, bundle)
+      locked_file = pending_file <> ".locked"
+      cond do
+        File.exists?(locked_file) ->
+          triage_bundle(locked_file, triage_file)
+        File.exists?(pending_file) ->
+          triage_bundle(pending_file, triage_file)
+        File.exists?(installed_file) ->
+          triage_bundle(pending_file, triage_file)
+        true ->
+          true
+      end
     end
   end
 
-  defp triage_bundle(bundle_name) do
-    bundle_root = Application.get_env(:relay, :bundle_root)
-    triage_root = Application.get_env(:relay, :triage_bundle_root)
-    pending_file = cond do
-      String.ends_with?(bundle_name, ".json") ->
-        Path.join(bundle_root, Path.basename(bundle_name))
-      true ->
-        Path.join(bundle_root, bundle_name <> ".cog")
-    end
-    triage_file = make_triage_file(triage_root, bundle_name)
-    case File.rename(pending_file, triage_file) do
+  defp triage_bundle(source, dest) do
+    case File.rename(source, dest) do
       :ok ->
-        Logger.info("Failed bundle #{bundle_name} triaged to #{triage_file}")
+        Logger.info("Failed bundle #{source} triaged to #{dest}")
+        true
       _error ->
-        Logger.error("Error triaging failed bundle #{pending_file} to #{triage_file}")
-        case File.rm_rf(pending_file) do
+        Logger.error("Error triaging failed bundle #{source} to #{dest}")
+        case File.rm_rf(source) do
           {:ok, _} ->
-            Logger.info("Stubborn failed bundle #{pending_file} has been deleted")
+            Logger.info("Stubborn failed bundle #{source} has been deleted")
+            true
           error ->
-            Logger.error("Deleting failed bundle #{pending_file} failed: #{inspect error}")
+            Logger.error("Deleting failed bundle #{source} failed: #{inspect error}")
+            false
         end
     end
   end
@@ -246,7 +233,20 @@ defmodule Relay.Bundle.Scanner do
     end
   end
 
+  defp build_bundle_path(root_dir, bundle) do
+    bundle = Path.basename(bundle)
+    if String.ends_with?(bundle, ".json") or String.ends_with?(bundle, ".cog") do
+      Path.join(root_dir, bundle)
+    else
+      Path.join(root_dir, bundle <> ".cog")
+    end
+  end
+
   defp triage_suffix(0), do: ""
   defp triage_suffix(n), do: "." <> Integer.to_string(n)
+
+  defp queue_next_scan() do
+    :timer.apply_after(scan_interval(), __MODULE__, :start_scanning, [])
+  end
 
 end
