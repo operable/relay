@@ -32,14 +32,14 @@ defmodule Relay.Bundle.Installer do
             {:ok, config} = BundleFile.config(bundle_file)
             Scanner.signal_failure(bundle: config["bundle"]["name"])
           else
-            Scanner.signal_failure(path: bundle_file)
+            Scanner.signal_failure(path: bundle_path)
           end
         else
           File.rm_rf(locked_path)
           if BundleFile.bundle_file?(bundle_file) do
             Scanner.signal_success(bundle_file.installed_path)
           else
-            Scanner.signal_success(bundle_file)
+            Scanner.signal_success(bundle_path)
           end
         end
         {:stop, :normal, state}
