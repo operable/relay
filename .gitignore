@@ -1,5 +1,6 @@
 /_build
 /cover
+/data
 /deps
 /doc
 /failed
@@ -10,3 +11,4 @@
 erl_crash.dump
 *.ez
 Mnesia.*
+*.pem
