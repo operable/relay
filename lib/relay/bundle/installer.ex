@@ -11,15 +11,22 @@ defmodule Relay.Bundle.Installer do
 
   defstruct [:bundle_path]
 
-  def start_link(bundle_path) do
-    GenServer.start_link(__MODULE__, [bundle_path])
+  def start(bundle_path) do
+    GenServer.start(__MODULE__, [bundle_path])
+  end
+
+  def install_bundle(installer) do
+    GenServer.call(installer, :install_bundle, 50)
   end
 
   def init([bundle_path]) do
     :random.seed(:erlang.timestamp())
-    {:ok, %__MODULE__{bundle_path: bundle_path}, :random.uniform(50) + 5}
+    {:ok, %__MODULE__{bundle_path: bundle_path}}
   end
 
+  def handle_call(:install_bundle, _from, state) do
+    {:reply, :ok, state, :random.uniform(50) + 10}
+  end
   def handle_info(:timeout, %__MODULE__{bundle_path: bundle_path}=state) do
     case lock_bundle(bundle_path) do
       :stop ->
