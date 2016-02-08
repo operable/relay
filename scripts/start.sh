@@ -91,10 +91,6 @@ function start_relay {
   # If Cog is running the /var/run/operable directory should already exist with the correct permissions
   # So this should have failed before getting to this point
   elixir --detached --no-halt --name "relay@127.0.0.1" -e "File.write! '/var/run/operable/relay.pid', :os.getpid"  -S mix
-  #iex --name "relay@127.0.0.1" -S mix > ${install_dir}/cog/data/relay.log 2>&1
-  #relay_pid=$?
-  #echo ${relay_pid}
-  #echo ${relay_pid} > /var/run/operable/relay.pid
 }
 
 
