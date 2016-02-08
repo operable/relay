@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
+set -x
+
 prev_start_cmd="iex --name relay@127.0.0.1 -S mix"
 
 MYNAME=`basename $0`
 install_dir=""
+elixir_cmd=`which elixir`
 
 # Clean up when we're done. For now this means
 # restoring the user's working directory.
@@ -19,25 +22,26 @@ pushd >& /dev/null
 
 function usage {
   printf "%s [help|--help|-h|-?] <install_dir> \n" ${MYNAME}
+  exit
 }
 
 while [ "$#" -gt 0 ];
 do
   case "$1" in
     help)
-      usage && exit 0
+      usage
       ;;
     \?)
-      usage && exit 0
+      usage
       ;;
     -\?)
-      usage && exit 0
+      usage
       ;;
     --help)
-      usage && exit 0
+      usage
       ;;
     -h)
-      usage && exit 0
+      usage
       ;;
     *)
       install_dir="$1"
@@ -57,37 +61,20 @@ if [ -e "${HOME}/relay.vars" ]; then
   source "${HOME}/relay.vars"
 fi
 
-# Verify Relay environment variables have been set
-function verify_env_vars {
-  env_var=`/usr/bin/env | grep $1 | cut -d '=' -f 2`
-  if [ -z ${env_var} ] ; then
-    return 0
-  else
-    return 1
-  fi
-}
-
 function verify_relay_env {
-  verify=1
-  verify_env_vars "RELAY_DATA_DIR"
-  if [ $? == 0 ] ; then
-    echo -e "\tWARNING! RELAY_DATA_DIR environment variable is not set. ${install_dir}/relay/command_config will be set for command configuration files"
+  if [ -z "$RELAY_DATA_DIR" ]; then
+    printf "\tWARNING! $RELAY_DATA_DIR is not set.\n"
+    printf "Dynamic command configs will be loaded from ${install_dir}/relay/command_config."
   fi
-  return ${verify}
+  return 0
 }
 
-function verify_cog_running {
-  if [ -e "/var/run/operable/cog.pid" ]; then
-    cog_pid=`cat /var/run/operable/cog.pid`
-    cog=`ps -e | sed -n /${cog_pid}/p`
-    echo ${cog}
-    if [ "${cog:-null}" = null ]; then
-      return 0
-    else
-      return 1
+function pid_file_prep {
+  if [ ! -d "/var/run/operable" ]; then
+    if ! mkdir -p /var/run/operable; then
+      printf "Unable to access or create /var/run/operable. Aborted startup.\n" 1>&2
+      exit 1
     fi
-  else
-    return 0
   fi
 }
 
@@ -96,25 +83,22 @@ function start_relay {
   # If Cog is running the /var/run/operable directory should already exist with the correct permissions
   # So this should have failed before getting to this point
   #elixir --detached -e "File.write! '/var/run/operable/relay.pid', :os.getpid" --name relay@127.0.0.1 -S mix
-  /usr/local/bin/elixir --detached -e "File.write! '/var/run/operable/relay.pid', :os.getpid" -S mix
+  ${elixir_cmd} --detached --name "relay@127.0.0.1" -e "File.write! '/var/run/operable/relay.pid', :os.getpid" -S mix
 }
 
 
 # Verify Relay has been installed with correct env vars set
-if [ -e "${install_dir}/relay" ]; then
-  echo "Relay installation detected at ${install_dir}/relay. Verifying required environment variables..."
-  verify_relay_env
-  if [ $? == 1 ] ; then
-    echo "Relay environment variables verified."
-  fi
-  verify_cog_running
-  if [ $? == 0 ] ; then
-    echo "Cog is not running. Please start Cog and try starting Relay again..."
-    exit 1
-  else
-    echo "Cog verified as running."
-    echo "Starting Relay"
-    start_relay
-    relay_success=1
-  fi
+if [ ! -d "${install_dir}/relay" ]; then
+  printf "Relay not found at ${install_dir}/relay. Aborted startup.\n" 1>&2
+  exit 1
 fi
+
+pid_file_prep
+
+if [ -z "${elixir_cmd}" ]; then
+  printf "'elixir' command not found. Aborted startup.\n" 1>&2
+  exit 1
+fi
+
+echo "Starting Relay"
+start_relay
