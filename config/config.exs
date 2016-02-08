@@ -29,8 +29,13 @@ config :carrier, credentials_dir: data_dir("carrier_credentials")
 # ========================================================================
 # Logging
 
-config :logger, :console,
+config :logger,
+  backends: [:console, {LoggerFileBackend, :relay_log}],
   metadata: [:module, :line],
   format: {Adz, :text}
+
+# configuration for the {LoggerFileBackend, :relay_log} backend
+config :logger, :relay_log,
+  path: data_dir("relay.log")
 
 import_config "#{Mix.env}.exs"

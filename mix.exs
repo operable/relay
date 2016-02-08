@@ -20,6 +20,7 @@ defmodule Relay.Mixfile do
   def application do
     [applications: [:crypto,
                     :logger,
+                    :logger_file_backend,
                     :spanner] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
@@ -48,6 +49,7 @@ defmodule Relay.Mixfile do
      {:emqttc, github: "emqtt/emqttc", branch: "master"},
      {:poison, "~> 1.5.0"},
      {:uuid, "~> 1.0.1"},
+     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend", tag: "v0.0.6"},
 
      # Though we do not explicitly use Spanner in Relay, we provide it
      # as a runtime dependency for command bundles.
