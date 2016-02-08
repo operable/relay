@@ -6,7 +6,7 @@ defmodule Relay.Config.Helpers do
   end
 
   def data_dir do
-    System.get_env("RELAY_DATA_DIR") || Path.expand(Path.join([Path.dirname(__ENV__.file), ".."]))
+    System.get_env("RELAY_DATA_DIR") || Path.expand(Path.join([Path.dirname(__ENV__.file), "..", "data"]))
   end
 
   def data_dir(subdir) do
