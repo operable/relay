@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-prev_start_cmd="iex --name relay@127.0.0.1 -S mix"
-
 MYNAME=`basename $0`
 install_dir=""
 
@@ -19,25 +17,26 @@ pushd >& /dev/null
 
 function usage {
   printf "%s [help|--help|-h|-?] <install_dir> \n" ${MYNAME}
+  exit 0
 }
 
 while [ "$#" -gt 0 ];
 do
   case "$1" in
     help)
-      usage && exit 0
+      usage
       ;;
     \?)
-      usage && exit 0
+      usage
       ;;
     -\?)
-      usage && exit 0
+      usage
       ;;
     --help)
-      usage && exit 0
+      usage
       ;;
     -h)
-      usage && exit 0
+      usage
       ;;
     *)
       install_dir="$1"
@@ -61,26 +60,22 @@ fi
 function verify_env_vars {
   env_var=`/usr/bin/env | grep $1 | cut -d '=' -f 2`
   if [ -z ${env_var} ] ; then
-    return 0
-  else
     return 1
+  else
+    return 0
   fi
 }
 
 function verify_relay_env {
-  verify=1
-  verify_env_vars "RELAY_DATA_DIR"
-  if [ $? == 0 ] ; then
-    echo -e "\tWARNING! RELAY_DATA_DIR environment variable is not set. ${install_dir}/relay/command_config will be set for command configuration files"
+  if ! verify_env_vars "RELAY_DATA_DIR" ; then
+    echo -e "\tWarning: RELAY_DATA_DIR environment variable is not set. ${install_dir}/relay/command_config will be used for command configuration files"
   fi
-  return ${verify}
 }
 
 function verify_cog_running {
   if [ -e "/var/run/operable/cog.pid" ]; then
     cog_pid=`cat /var/run/operable/cog.pid`
     cog=`ps -e | sed -n /${cog_pid}/p`
-    echo ${cog}
     if [ "${cog:-null}" = null ]; then
       return 0
     else
@@ -95,8 +90,7 @@ function start_relay {
   cd "${install_dir}/relay"
   # If Cog is running the /var/run/operable directory should already exist with the correct permissions
   # So this should have failed before getting to this point
-  #elixir --detached -e "File.write! '/var/run/operable/relay.pid', :os.getpid" --name relay@127.0.0.1 -S mix
-  /usr/local/bin/elixir --detached -e "File.write! '/var/run/operable/relay.pid', :os.getpid" -S mix
+  elixir --detached --name "relay@127.0.0.1" -e "File.write! '/var/run/operable/relay.pid', :os.getpid"  -S mix
 }
 
 
@@ -115,6 +109,5 @@ if [ -e "${install_dir}/relay" ]; then
     echo "Cog verified as running."
     echo "Starting Relay"
     start_relay
-    relay_success=1
   fi
 fi
