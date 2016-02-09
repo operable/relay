@@ -12,6 +12,7 @@
   "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
   "gproc": {:git, "git://github.com/uwiger/gproc.git", "85d8dddf2b04690cee051994b40bfa45925f9e36", [branch: "master"]},
   "lager": {:git, "git://github.com/basho/lager.git", "310ed140ab86b95dd9f1f1ed3bf2ca93f841349d", [branch: "master"]},
+  "logger_file_backend": {:git, "https://github.com/onkel-dirtus/logger_file_backend.git", "1a93ad84e12fa79f979fea2a70d1d1b0b1fe2899", [tag: "v0.0.6"]},
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.5"},
   "mochiweb": {:git, "git://github.com/emqtt/mochiweb.git", "f1ce26fe373b2a9b52b0b1a5d2306ebb225af7bd", [branch: "master"]},
   "piper": {:git, "git@github.com:operable/piper", "01a5ff07e9d24b712c5fa71736940ac9b69d1ef8", [ref: "888d9df3eeeb16954bf0e68c9083a28baf6c92d5"]},
