@@ -105,11 +105,20 @@ defmodule Relay.Bundle.Installer do
   defp activate_bundle(bf, config) do
     case ConfigValidator.validate(config) do
       :ok ->
-        case verify_executables(bf, config) do
+        case verify_template_paths(bf, config) do
           {:ok, config} ->
-            verify_install_hook(bf, config)
+            case verify_executables(bf, config) do
+              {:ok, config} ->
+                verify_install_hook(bf, config)
+              {:error, {:missing_file, command, file}} ->
+                Logger.error("Failed to find executable #{file} for command #{command}")
+                {:error, bf}
+            end
           {:error, {:missing_file, command, file}} ->
-            Logger.error("Failed to find executable #{file} for command #{command}")
+            Logger.error("Failed to find template file #{file} for command #{command}")
+            {:error, bf}
+          {:error, {:unable_to_open, command, file}} ->
+            Logger.error("Unable to open the template file #{file} for command #{command}")
             {:error, bf}
         end
       {:error, {error_type, _, message}} ->
@@ -119,6 +128,29 @@ defmodule Relay.Bundle.Installer do
           Logger.error("config.json for bundle #{bf} failed validation: #{error_type} #{message}")
         end
         {:error, bf}
+    end
+  end
+
+  defp verify_template_paths(bf, config) when is_binary(bf) do
+    verify_template_paths(bf, config, config["templates"], [])
+  end
+
+  defp verify_template_paths(_bf, config, [], templates) do
+    templates = Enum.reverse(templates)
+    {:ok, Map.put(config, "templates", templates)}
+  end
+  defp verify_template_paths(bf, config, [cmd|t], accum) when is_binary(bf) do
+    template_path = cmd["path"]
+    if File.regular?(template_path) do
+      case File.open(template_path, [:read]) do
+        {:ok, fd} ->
+          File.close(fd)
+          verify_template_paths(bf, config, t, [cmd|accum])
+        {:error, _} ->
+          {:error, {:unable_to_open, cmd["template"], template_path}}
+      end
+    else
+      {:error, {:missing_file, cmd["template"], template_path}}
     end
   end
 
