@@ -147,10 +147,10 @@ defmodule Relay.Bundle.Installer do
           File.close(fd)
           verify_template_paths(bf, config, t, [cmd|accum])
         {:error, _} ->
-          {:error, {:unable_to_open, cmd["template"], template_path}}
+          {:error, {:unable_to_open, cmd["name"], template_path}}
       end
     else
-      {:error, {:missing_file, cmd["template"], template_path}}
+      {:error, {:missing_file, cmd["name"], template_path}}
     end
   end
 
