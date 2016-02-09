@@ -72,20 +72,6 @@ function verify_relay_env {
   fi
 }
 
-function verify_cog_running {
-  if [ -e "/var/run/operable/cog.pid" ]; then
-    cog_pid=`cat /var/run/operable/cog.pid`
-    cog=`ps -e | sed -n /${cog_pid}/p`
-    if [ "${cog:-null}" = null ]; then
-      return 0
-    else
-      return 1
-    fi
-  else
-    return 0
-  fi
-}
-
 function start_relay {
   cd "${install_dir}/relay"
   # If Cog is running the /var/run/operable directory should already exist with the correct permissions
@@ -101,13 +87,6 @@ if [ -e "${install_dir}/relay" ]; then
   if [ $? == 1 ] ; then
     echo "Relay environment variables verified."
   fi
-  verify_cog_running
-  if [ $? == 0 ] ; then
-    echo "Cog is not running. Please start Cog and try starting Relay again..."
-    exit 1
-  else
-    echo "Cog verified as running."
-    echo "Starting Relay"
-    start_relay
-  fi
+  echo "Starting Relay"
+  start_relay
 fi
