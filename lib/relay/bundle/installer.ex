@@ -120,6 +120,9 @@ defmodule Relay.Bundle.Installer do
           {:error, {:unable_to_open, command, file}} ->
             Logger.error("Unable to open the template file #{file} for command #{command}")
             {:error, bf}
+          {:error, {:unexpected_value, value}} ->
+            Logger.error("Illegal template value: #{inspect value}")
+            {:error, bf}
         end
       {:error, {error_type, _, message}} ->
         if BundleFile.bundle_file?(bf) do
