@@ -186,12 +186,11 @@ defmodule Relay.Bundle.Installer do
     end
   end
   defp verify_template(bf, %{"path" => path}) do
-    full_path = Path.join(bf.installed_path, path)
-    case check_bundle_file(full_path) do
-      :ok ->
-        {:ok, %{"path" => full_path}}
-      error ->
-        error
+    case BundleFile.find_file(bf, path) do
+      nil ->
+        {:error, {:missing_file, path}}
+      path ->
+        {:ok, %{"path" => path}}
     end
   end
   defp verify_template(_, %{"template" => contents}=template) when is_binary(contents) do
@@ -311,13 +310,35 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp register_and_start_bundle(bf, config) when is_binary(bf) do
+    templates = for template <- Map.get(config, "templates", []) do
+      case template do
+        %{"path" => path} ->
+          {:ok, contents} = File.read_path(path)
+          contents
+        %{"template" => template} ->
+          template
+      end
+    end
+    config = Map.put(config, "templates", templates)
     register_and_start_bundle2(bf, config)
   end
   defp register_and_start_bundle(bf, config) do
     commands = for command <- Map.get(config, "commands", []) do
       Map.put(command, "executable", Path.join(bf.installed_path, command["executable"]))
     end
-    config = Map.put(config, "commands", commands)
+    templates = for template <- Map.get(config, "templates", []) do
+      case template do
+        %{"path" => path} ->
+          full_path = Path.join(bf.installed_path, path)
+          {:ok, contents} = File.read(full_path)
+          contents
+        %{"template" => template} ->
+          template
+      end
+    end
+    config = config
+    |> Map.put("commands", commands)
+    |> Map.put("templates", templates)
     case register_and_start_bundle2(bf.installed_path, config) do
       {:ok, _} ->
         {:ok, bf}
@@ -454,17 +475,16 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp check_bundle_file(file_path) do
-    case File.regular?(file_path) do
-      true ->
-        case File.open(file_path) do
-          {:ok, fd} ->
-            File.close(fd)
-            :ok
-          {:error, _} ->
-            {:error, {:unable_to_open, file_path}}
-        end
-      false ->
-        {:error, {:missing_file, file_path}}
+    if File.regular?(file_path) do
+      case File.open(file_path, [:read]) do
+        {:ok, fd} ->
+          File.close(fd)
+          :ok
+        _error ->
+          {:error, {:unable_to_read, file_path}}
+      end
+    else
+      {:error, {:missing_file, file_path}}
     end
   end
 
