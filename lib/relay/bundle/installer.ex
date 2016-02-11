@@ -105,20 +105,11 @@ defmodule Relay.Bundle.Installer do
   defp activate_bundle(bf, config) do
     case ConfigValidator.validate(config) do
       :ok ->
-        case verify_template_paths(bf, config) do
+        case verify_executables(bf, config) do
           {:ok, config} ->
-            case verify_executables(bf, config) do
-              {:ok, config} ->
-                verify_install_hook(bf, config)
-              {:error, {:missing_file, command, file}} ->
-                Logger.error("Failed to find executable #{file} for command #{command}")
-                {:error, bf}
-            end
+            verify_install_hook(bf, config)
           {:error, {:missing_file, command, file}} ->
-            Logger.error("Failed to find template file #{file} for command #{command}")
-            {:error, bf}
-          {:error, {:unable_to_open, command, file}} ->
-            Logger.error("Unable to open the template file #{file} for command #{command}")
+            Logger.error("Failed to find executable file #{file} for command #{command}")
             {:error, bf}
         end
       {:error, {error_type, _, message}} ->
@@ -131,7 +122,7 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  defp verify_template_paths(bf, config) when is_binary(bf) do
+  defp verify_template_paths(bf, config) do
     verify_template_paths(bf, config, config["templates"], [])
   end
 
@@ -139,18 +130,32 @@ defmodule Relay.Bundle.Installer do
     templates = Enum.reverse(templates)
     {:ok, Map.put(config, "templates", templates)}
   end
-  defp verify_template_paths(bf, config, [cmd|t], accum) when is_binary(bf) do
+  defp verify_template_paths(bf, config, [cmd|t], accum) do
     template_path = cmd["path"]
-    if File.regular?(template_path) do
-      case File.open(template_path, [:read]) do
-        {:ok, fd} ->
-          File.close(fd)
+
+    full_path = get_full_path(template_path, config)
+    if File.regular?(full_path) do
+      case File.read(full_path) do
+        {:ok, source} ->
+          cmd = Map.put(cmd, "source", source)
           verify_template_paths(bf, config, t, [cmd|accum])
         {:error, _} ->
-          {:error, {:unable_to_open, cmd["name"], template_path}}
+          Logger.error("Unable to open the template file #{full_path} for command #{cmd["name"]}")
+          {:error, {:unable_to_open, cmd["name"], full_path}}
       end
     else
-      {:error, {:missing_file, cmd["name"], template_path}}
+      Logger.error("Unable to open the template file #{full_path} for command #{cmd["name"]}")
+      {:error, {:missing_file, cmd["name"], full_path}}
+    end
+  end
+
+  defp get_full_path(path, config) do
+    if File.regular?(path) do
+      path
+    else
+      Application.get_env(:relay, :bundle_root)
+      |> build_install_dest(config)
+      |> Path.join(path)
     end
   end
 
@@ -206,7 +211,16 @@ defmodule Relay.Bundle.Installer do
     install_path = build_install_dest(bundle_root, config, true)
     case File.rename(bf, install_path) do
       :ok ->
-        register_and_start_bundle(install_path, config)
+        case verify_template_paths(bf, config) do
+          {:ok, config} ->
+            register_and_start_bundle(install_path, config)
+          {:error, {:missing_file, command, file}} ->
+            Logger.error("Failed to find template file #{file} for command #{command}")
+            {:error, bf}
+          {:error, {:unable_to_open, command, file}} ->
+            Logger.error("Unable to open the template file #{file} for command #{command}")
+            {:error, bf}
+        end
       error ->
         Logger.error("Error installing simple bundle #{bf} to #{install_path}: #{inspect error}")
         {:error, bf}
@@ -222,23 +236,32 @@ defmodule Relay.Bundle.Installer do
       {:ok, bf} ->
         case File.dir?(install_dir) do
           true ->
-            case BundleFile.verify_installed_files(bf) do
-              :ok ->
-                case run_install_hook(bf, config) do
+            case verify_template_paths(bf, config) do
+              {:ok, config} ->
+                case BundleFile.verify_installed_files(bf) do
                   :ok ->
-                    case set_permssions_for_executables(install_dir, config) do
+                    case run_install_hook(bf, config) do
                       :ok ->
-                        register_and_start_bundle(bf, config)
-                      error ->
-                        Logger.error("Error setting executable permissions for bundle #{bf.path}: #{inspect error}")
+                        case set_permssions_for_executables(install_dir, config) do
+                          :ok ->
+                            register_and_start_bundle(bf, config)
+                          error ->
+                            Logger.error("Error setting executable permissions for bundle #{bf.path}: #{inspect error}")
+                            {:error, bf}
+                        end
+                      :error ->
                         {:error, bf}
                     end
-                  :error ->
+                  {:failed, files} ->
+                    files = Enum.join(files, "\n")
+                    Logger.error("Bundle #{bf.path} contains corrupted files:\n#{files}")
                     {:error, bf}
                 end
-              {:failed, files} ->
-                files = Enum.join(files, "\n")
-                Logger.error("Bundle #{bf.path} contains corrupted files:\n#{files}")
+              {:error, {:missing_file, command, file}} ->
+                Logger.error("Failed to find template file #{file} for command #{command}")
+                {:error, bf}
+              {:error, {:unable_to_open, command, file}} ->
+                Logger.error("Unable to open the template file #{file} for command #{command}")
                 {:error, bf}
             end
           _ ->
