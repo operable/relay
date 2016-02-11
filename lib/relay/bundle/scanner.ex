@@ -163,6 +163,8 @@ defmodule Relay.Bundle.Scanner do
     pending_root = Application.get_env(:relay, :pending_bundle_root)
     bundle_root = Application.get_env(:relay, :bundle_root)
     triage_root = Application.get_env(:relay, :triage_bundle_root)
+
+    ensure_triage_root()
     triage_file = make_triage_file(triage_root, bundle)
 
     if File.exists?(bundle) do
@@ -185,6 +187,7 @@ defmodule Relay.Bundle.Scanner do
   end
 
   defp triage_bundle(source, dest) do
+    ensure_triage_root()
     case File.rename(source, dest) do
       :ok ->
         Logger.info("Failed bundle #{source} triaged to #{dest}")
@@ -236,6 +239,11 @@ defmodule Relay.Bundle.Scanner do
 
   defp queue_next_scan() do
     :timer.apply_after(scan_interval(), __MODULE__, :start_scanning, [])
+  end
+
+  defp ensure_triage_root() do
+    triage_root = Application.get_env(:relay, :triage_bundle_root)
+    File.mkdir_p(triage_root)
   end
 
 end
