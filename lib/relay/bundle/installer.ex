@@ -189,7 +189,7 @@ defmodule Relay.Bundle.Installer do
     case BundleFile.find_file(bf, path) do
       nil ->
         {:error, {:missing_file, path}}
-      path ->
+      _ ->
         {:ok, template}
     end
   end
@@ -328,7 +328,7 @@ defmodule Relay.Bundle.Installer do
     end
     templates = for template <- Map.get(config, "templates", []) do
       case template do
-        %{"path" => path} do
+        %{"path" => path} ->
           full_path = Path.join(bf.installed_path, path)
           {:ok, contents} = File.read(full_path)
           template
