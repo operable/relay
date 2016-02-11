@@ -29,10 +29,12 @@ config :carrier, credentials_dir: data_dir("carrier_credentials")
 # ========================================================================
 # Logging
 
+log_opts = [metadata: [:module, :line], format: {Adz, :text}]
+
 config :logger,
   backends: [:console, {LoggerFileBackend, :relay_log}],
-  metadata: [:module, :line],
-  format: {Adz, :text}
+  console: log_opts,
+  relay_log: log_opts ++ [path: data_dir("relay.log")]
 
 # configuration for the {LoggerFileBackend, :relay_log} backend
 config :logger, :relay_log,
