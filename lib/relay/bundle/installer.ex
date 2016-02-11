@@ -133,10 +133,7 @@ defmodule Relay.Bundle.Installer do
   defp verify_template_paths(bf, config, [cmd|t], accum) do
     template_path = cmd["path"]
 
-    bundle_root = Application.get_env(:relay, :bundle_root)
-    install_dir = build_install_dest(bundle_root, config)
-
-    full_path = Path.join(install_dir, template_path)
+    full_path = get_full_path(template_path, config)
     if File.regular?(full_path) do
       case File.read(full_path) do
         {:ok, source} ->
@@ -149,6 +146,16 @@ defmodule Relay.Bundle.Installer do
     else
       Logger.error("Unable to open the template file #{full_path} for command #{cmd["name"]}")
       {:error, {:missing_file, cmd["name"], full_path}}
+    end
+  end
+
+  defp get_full_path(path, config) do
+    if File.regular?(path) do
+      path
+    else
+      Application.get_env(:relay, :bundle_root)
+      |> build_install_dest(config)
+      |> Path.join(path)
     end
   end
 
@@ -204,7 +211,16 @@ defmodule Relay.Bundle.Installer do
     install_path = build_install_dest(bundle_root, config, true)
     case File.rename(bf, install_path) do
       :ok ->
-        register_and_start_bundle(install_path, config)
+        case verify_template_paths(bf, config) do
+          {:ok, config} ->
+            register_and_start_bundle(install_path, config)
+          {:error, {:missing_file, command, file}} ->
+            Logger.error("Failed to find template file #{file} for command #{command}")
+            {:error, bf}
+          {:error, {:unable_to_open, command, file}} ->
+            Logger.error("Unable to open the template file #{file} for command #{command}")
+            {:error, bf}
+        end
       error ->
         Logger.error("Error installing simple bundle #{bf} to #{install_path}: #{inspect error}")
         {:error, bf}
