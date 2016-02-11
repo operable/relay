@@ -331,7 +331,9 @@ defmodule Relay.Bundle.Installer do
         %{"path" => path} do
           full_path = Path.join(bf.installed_path, path)
           {:ok, contents} = File.read(full_path)
-          Map.update(template, "source", contents)
+          template
+          |> Map.update("source", contents)
+          |> Map.delete("path")
           _ ->
             template
       end
