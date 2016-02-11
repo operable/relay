@@ -185,15 +185,15 @@ defmodule Relay.Bundle.Installer do
         error
     end
   end
-  defp verify_template(bf, %{"path" => path}) do
+  defp verify_template(bf, %{"path" => path}=template) do
     case BundleFile.find_file(bf, path) do
       nil ->
         {:error, {:missing_file, path}}
       path ->
-        {:ok, %{"path" => path}}
+        {:ok, template}
     end
   end
-  defp verify_template(_, %{"template" => contents}=template) when is_binary(contents) do
+  defp verify_template(_, %{"source" => contents}=template) when is_binary(contents) do
     {:ok, template}
   end
   defp verify_template(_, template) do
@@ -328,12 +328,12 @@ defmodule Relay.Bundle.Installer do
     end
     templates = for template <- Map.get(config, "templates", []) do
       case template do
-        %{"path" => path} ->
+        %{"path" => path} do
           full_path = Path.join(bf.installed_path, path)
           {:ok, contents} = File.read(full_path)
-          contents
-        %{"template" => template} ->
-          template
+          Map.update(template, "source", contents)
+          _ ->
+            template
       end
     end
     config = config
