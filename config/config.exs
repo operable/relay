@@ -36,8 +36,5 @@ config :logger,
   console: log_opts,
   relay_log: log_opts ++ [path: data_dir("relay.log")]
 
-# configuration for the {LoggerFileBackend, :relay_log} backend
-config :logger, :relay_log,
-  path: data_dir("relay.log")
 
 import_config "#{Mix.env}.exs"

@@ -120,6 +120,9 @@ defmodule Relay.Bundle.Installer do
           {:error, {:unable_to_open, command, file}} ->
             Logger.error("Unable to open the template file #{file} for command #{command}")
             {:error, bf}
+          {:error, {:unexpected_value, value}} ->
+            Logger.error("Illegal template value: #{inspect value}")
+            {:error, bf}
         end
       {:error, {error_type, _, message}} ->
         if BundleFile.bundle_file?(bf) do
@@ -132,26 +135,69 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp verify_template_paths(bf, config) when is_binary(bf) do
-    verify_template_paths(bf, config, config["templates"], [])
+    templates = config["templates"]
+    case verify_simple_templates(templates) do
+      :ok ->
+        {:ok, config}
+      error ->
+        error
+    end
+  end
+  defp verify_template_paths(bf, config) do
+    templates = config["templates"]
+    case verify_normal_templates(templates, bf, []) do
+      {:ok, templates} ->
+        {:ok, %{config | "templates" => templates}}
+      error ->
+        error
+    end
   end
 
-  defp verify_template_paths(_bf, config, [], templates) do
-    templates = Enum.reverse(templates)
-    {:ok, Map.put(config, "templates", templates)}
+  defp verify_normal_templates([], _bf, templates) do
+    {:ok, Enum.reverse(templates)}
   end
-  defp verify_template_paths(bf, config, [cmd|t], accum) when is_binary(bf) do
-    template_path = cmd["path"]
-    if File.regular?(template_path) do
-      case File.open(template_path, [:read]) do
-        {:ok, fd} ->
-          File.close(fd)
-          verify_template_paths(bf, config, t, [cmd|accum])
-        {:error, _} ->
-          {:error, {:unable_to_open, cmd["name"], template_path}}
-      end
-    else
-      {:error, {:missing_file, cmd["name"], template_path}}
+  defp verify_normal_templates([template|t], bf, templates) do
+    case verify_template(bf, template) do
+      {:ok, template} ->
+        verify_normal_templates(t, bf, [template|templates])
+      error ->
+        error
     end
+  end
+
+  defp verify_simple_templates([]) do
+    :ok
+  end
+  defp verify_simple_templates([template|t]) when is_map(template) do
+    case verify_template(nil, template) do
+      {:ok, _} ->
+        verify_simple_templates(t)
+      error ->
+        error
+    end
+  end
+
+  defp verify_template(nil, %{"path" => path}=template) do
+    case check_bundle_file(path) do
+      :ok ->
+        {:ok, template}
+      error ->
+        error
+    end
+  end
+  defp verify_template(bf, %{"path" => path}=template) do
+    case BundleFile.find_file(bf, path) do
+      nil ->
+        {:error, {:missing_file, path}}
+      _ ->
+        {:ok, template}
+    end
+  end
+  defp verify_template(_, %{"source" => contents}=template) when is_binary(contents) do
+    {:ok, template}
+  end
+  defp verify_template(_, template) do
+    {:error, {:unexpected_value, template}}
   end
 
   defp verify_install_hook(bf, config) when is_binary(bf) do
@@ -264,13 +310,37 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp register_and_start_bundle(bf, config) when is_binary(bf) do
+    templates = for template <- Map.get(config, "templates", []) do
+      case template do
+        %{"path" => path} ->
+          {:ok, contents} = File.read_path(path)
+          contents
+        %{"template" => template} ->
+          template
+      end
+    end
+    config = Map.put(config, "templates", templates)
     register_and_start_bundle2(bf, config)
   end
   defp register_and_start_bundle(bf, config) do
     commands = for command <- Map.get(config, "commands", []) do
       Map.put(command, "executable", Path.join(bf.installed_path, command["executable"]))
     end
-    config = Map.put(config, "commands", commands)
+    templates = for template <- Map.get(config, "templates", []) do
+      case template do
+        %{"path" => path} ->
+          full_path = Path.join(bf.installed_path, path)
+          {:ok, contents} = File.read(full_path)
+          template
+          |> Map.put("source", contents)
+          |> Map.delete("path")
+          _ ->
+            template
+      end
+    end
+    config = config
+    |> Map.put("commands", commands)
+    |> Map.put("templates", templates)
     case register_and_start_bundle2(bf.installed_path, config) do
       {:ok, _} ->
         {:ok, bf}
@@ -403,6 +473,20 @@ defmodule Relay.Bundle.Installer do
           Logger.error("Error locking bundle #{bundle_path}: #{inspect error}")
           :stop
       end
+    end
+  end
+
+  defp check_bundle_file(file_path) do
+    if File.regular?(file_path) do
+      case File.open(file_path, [:read]) do
+        {:ok, fd} ->
+          File.close(fd)
+          :ok
+        _error ->
+          {:error, {:unable_to_read, file_path}}
+      end
+    else
+      {:error, {:missing_file, file_path}}
     end
   end
 
