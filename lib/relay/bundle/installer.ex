@@ -414,7 +414,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp run_install_script(bf, script) when is_binary(bf) do
-    run_script(script)
+    run_script(Path.dirname(bf), script)
   end
   defp run_install_script(bf, script) do
     {script, rest} = case String.split(script, " ") do
@@ -426,18 +426,18 @@ defmodule Relay.Bundle.Installer do
     installed_script = Path.join(bf.installed_path, script)
     cond do
       File.regular?(script) ->
-        run_script(Enum.join([script|rest], " "))
+        run_script(bf.installed_path, Enum.join([script|rest], " "))
       File.regular?(installed_script) ->
         File.chmod(installed_script, 0o755)
-        run_script(Enum.join([installed_script|rest], " "))
+        run_script(bf.installed_path, Enum.join([installed_script|rest], " "))
       true ->
         Logger.error("Install script #{script} not found for installed bundle #{bf.installed_path}")
         :error
     end
   end
 
-  defp run_script(script) do
-    result = Porcelain.shell(script, err: :out)
+  defp run_script(working_dir, script) do
+    result = Porcelain.shell(script, err: :out, dir: working_dir)
     if result.status == 0 do
       Logger.info("Install script #{script} completed: " <> result.out)
       :ok
