@@ -2,6 +2,7 @@ defmodule Relay.Bundle.InstallHelpers do
 
   require Logger
 
+  alias Relay.BundleFile
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
   alias Relay.Announcer
@@ -16,9 +17,52 @@ defmodule Relay.Bundle.InstallHelpers do
     deactivate(bundle_name, bundle_file(bundle_name))
   end
 
+  def run_script(bundle_file, script, kind \\ "Install")
+  def run_script(%BundleFile{}=bf, script, kind) do
+    run_script(bf.installed_path, script, kind)
+  end
+  def run_script(installed_path, script, kind) when is_binary(installed_path) do
+    install_dir = if String.ends_with?(installed_path, ".json") or String.ends_with?(installed_path, ".json.locked") do
+      Path.dirname(installed_path)
+    else
+      installed_path
+    end
+    {script, rest} = case String.split(script, " ") do
+                       [^script] ->
+                         {script, []}
+                       [script|t] ->
+                         {script, t}
+                     end
+    installed_script = Path.join(install_dir, script)
+    cond do
+      File.regular?(script) ->
+        exec_script(install_dir, Enum.join([script|rest], " "), kind)
+      File.regular?(installed_script) ->
+        File.chmod(installed_script, 0o755)
+        exec_script(install_dir, Enum.join([installed_script|rest], " "), kind)
+      true ->
+        Logger.error("#{kind} script #{script} not found for installed bundle #{installed_path}")
+        :error
+    end
+  end
+
+
+  defp exec_script(working_dir, script, kind) do
+    result = Porcelain.shell(script, err: :out, dir: working_dir)
+    if result.status == 0 do
+      Logger.info("#{kind} script #{script} completed: " <> result.out)
+      :ok
+    else
+      Logger.error("#{kind} script #{script} exited with status #{result.status}: " <> result.out)
+      :error
+    end
+  end
+
+
   defp deactivate(bundle_name, {:ok, nil, installed_path}) do
-    :ok = Catalog.uninstall(bundle_name)
     :ok = Runner.stop_bundle(bundle_name)
+    run_uninstall_hook(bundle_name)
+    :ok = Catalog.uninstall(bundle_name)
     remove_installed_path(bundle_name, installed_path)
     :ok = Announcer.snapshot
     Logger.info("Bundle `#{bundle_name}` successfully deactivated")
@@ -26,8 +70,9 @@ defmodule Relay.Bundle.InstallHelpers do
   defp deactivate(bundle_name, {:ok, bundle_file, installed_path}) do
     case lock_bundle(bundle_file) do
       {:ok, locked_path} ->
-        :ok = Catalog.uninstall(bundle_name)
         :ok = Runner.stop_bundle(bundle_name)
+        run_uninstall_hook(bundle_name)
+        :ok = Catalog.uninstall(bundle_name)
         remove_installed_path(bundle_name, installed_path)
         case File.rm_rf(locked_path) do
           {:ok, [^locked_path]} ->
@@ -51,6 +96,21 @@ defmodule Relay.Bundle.InstallHelpers do
   defp deactivate(bundle_name, {:error, {:no_bundle_file, _}}=error) do
     Logger.error("The bundle file for `#{bundle_name}` was not found")
     error
+  end
+
+  defp run_uninstall_hook(bundle_name) do
+    if Catalog.installed?(bundle_name) do
+      {:ok, config} = Catalog.bundle_config(bundle_name)
+      bundle = config["bundle"]
+      if Map.has_key?(bundle, "uninstall") do
+        installed_path = Catalog.installed_path(bundle_name)
+        run_script(installed_path, bundle["uninstall"], "Uninstall")
+      else
+        :ok
+      end
+    else
+      :ok
+    end
   end
 
   defp remove_installed_path(_bundle_name, nil) do

@@ -8,6 +8,7 @@ defmodule Relay.Bundle.Installer do
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
   alias Spanner.Bundle.ConfigValidator
+  import Relay.Bundle.InstallHelpers, only: [run_script: 2]
 
   defstruct [:bundle_path]
 
@@ -409,41 +410,7 @@ defmodule Relay.Bundle.Installer do
       nil ->
         :ok
       script ->
-        run_install_script(bf, script)
-    end
-  end
-
-  defp run_install_script(bf, script) when is_binary(bf) do
-    run_script(Path.dirname(bf), script)
-  end
-  defp run_install_script(bf, script) do
-    {script, rest} = case String.split(script, " ") do
-                       [^script] ->
-                         {script, []}
-                       [script|t] ->
-                         {script, t}
-                     end
-    installed_script = Path.join(bf.installed_path, script)
-    cond do
-      File.regular?(script) ->
-        run_script(bf.installed_path, Enum.join([script|rest], " "))
-      File.regular?(installed_script) ->
-        File.chmod(installed_script, 0o755)
-        run_script(bf.installed_path, Enum.join([installed_script|rest], " "))
-      true ->
-        Logger.error("Install script #{script} not found for installed bundle #{bf.installed_path}")
-        :error
-    end
-  end
-
-  defp run_script(working_dir, script) do
-    result = Porcelain.shell(script, err: :out, dir: working_dir)
-    if result.status == 0 do
-      Logger.info("Install script #{script} completed: " <> result.out)
-      :ok
-    else
-      Logger.error("Install script #{script} exited with status #{result.status}: " <> result.out)
-      :error
+        run_script(bf, script)
     end
   end
 
