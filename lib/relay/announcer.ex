@@ -120,6 +120,7 @@ defmodule Relay.Announcer do
   alias Carrier.Messaging.Connection
   alias Carrier.Signature
   alias Relay.Bundle.Catalog
+  alias Relay.Bundle.Triage
 
   def start_link(),
     do: :gen_fsm.start_link({:local, __MODULE__}, __MODULE__, [], [])
@@ -255,7 +256,8 @@ defmodule Relay.Announcer do
     # messages should leave us in whatever state we're currently in.
 
     case CredentialManager.verify_signed_message(message) do
-      {true, %{"acknowledged" => id}} ->
+      {true, %{"announcement_id" => id, "status" => status, "bundles" => failed_bundles}} ->
+        if status == "failed", do: Triage.remove_bundles(failed_bundles)
         if currently_in_flight?(loop_data, id) do
           loop_data = mark_as_acknowledged(loop_data, id)
           maybe_transition_state({state, :announcing}, loop_data)
