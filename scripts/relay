@@ -45,11 +45,9 @@ while [ "$#" -gt 0 ];
 do
   case "$1" in
     --foreground)
-      shift
       FOREGROUND="true"
       ;;
     -fg)
-      shift
       FOREGROUND="true"
       ;;
     --dir)
