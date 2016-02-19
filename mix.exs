@@ -43,13 +43,10 @@ defmodule Relay.Mixfile do
   end
 
   defp deps do
-    [{:earmark, "~> 0.1", only: :dev},
-     {:ex_doc, "~> 0.11", only: :dev},
-     {:mix_test_watch, "~> 0.2", only: [:dev, :test]},
-     {:emqttc, github: "emqtt/emqttc", branch: "master"},
-     {:poison, "~> 1.5.0"},
-     {:uuid, "~> 1.0.1"},
-     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend", tag: "v0.0.6"},
+    [{:emqttc, github: "operable/emqttc", ref: "dc36f593822f8e01771a7edc780441fdfb2f7b15"},
+     {:poison, "~> 1.5.2"},
+     {:uuid, "~> 1.1.3"},
+     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend", ref: "457ce74fc242261328f71a77d75252bf0c74c170"},
 
      # Though we do not explicitly use Spanner in Relay, we provide it
      # as a runtime dependency for command bundles.
@@ -61,13 +58,17 @@ defmodule Relay.Mixfile do
      #
      # Ditto for Piper (a dependency of spanner and runtime dependency
      # of bundles).
-     {:spanner, git: "git@github.com:operable/spanner", ref: "314d40dbf326ecc29d7f9291491fb69a8fe70b34"},
+     {:spanner, git: "git@github.com:operable/spanner", ref: "33af977194f2377048ae41a4e9d180ebc86e4d70"},
+
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
      # running ExUnit; Relay will not start unless there is a message
      # bus to connect to.
-     {:emqttd, github: "operable/emqttd", branch: "tweaks-for-upstream", only: :test}
-    ]
+     {:emqttd, github: "operable/emqttd", branch: "tweaks-for-upstream", only: :test},
+
+     {:earmark, "~> 0.2.1", only: :dev},
+     {:ex_doc, "~> 0.11.4", only: :dev},
+     {:mix_test_watch, "~> 0.2.5", only: :dev}]
   end
 
   defp docs do
