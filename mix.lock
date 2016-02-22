@@ -1,5 +1,5 @@
 %{"adz": {:git, "git@github.com:operable/adz", "140db3cc4dbecee1a2b68e8d0b18d7c64f27996a", [ref: "140db3cc4dbecee1a2b68e8d0b18d7c64f27996a"]},
-  "carrier": {:git, "git@github.com:operable/carrier", "4cb2e0981a8c548551702cba6a1453a9f5d15c08", [ref: "4cb2e0981a8c548551702cba6a1453a9f5d15c08"]},
+  "carrier": {:git, "git@github.com:operable/carrier", "4cb2e0981a8c548551702cba6a1453a9f5d15c08", [tag: "0.2"]},
   "earmark": {:hex, :earmark, "0.2.1"},
   "emqttc": {:git, "https://github.com/operable/emqttc.git", "dc36f593822f8e01771a7edc780441fdfb2f7b15", [ref: "dc36f593822f8e01771a7edc780441fdfb2f7b15"]},
   "emqttd": {:git, "https://github.com/operable/emqttd.git", "e99446c927299ced7d93437f94c18e73a9cc0e75", [branch: "tweaks-for-upstream"]},
@@ -15,8 +15,8 @@
   "logger_file_backend": {:git, "https://github.com/onkel-dirtus/logger_file_backend.git", "457ce74fc242261328f71a77d75252bf0c74c170", [ref: "457ce74fc242261328f71a77d75252bf0c74c170"]},
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.5"},
   "mochiweb": {:git, "git://github.com/emqtt/mochiweb.git", "f1ce26fe373b2a9b52b0b1a5d2306ebb225af7bd", [branch: "master"]},
-  "piper": {:git, "git@github.com:operable/piper", "acfb2150a25004a5ab2a80e7a5bfd418f35ea532", [ref: "acfb2150a25004a5ab2a80e7a5bfd418f35ea532"]},
+  "piper": {:git, "git@github.com:operable/piper", "acfb2150a25004a5ab2a80e7a5bfd418f35ea532", [tag: "0.2"]},
   "poison": {:hex, :poison, "1.5.2"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "git@github.com:operable/spanner", "952dd481ad7f86984254b7c0a8053234fee1a23b", [ref: "952dd481ad7f86984254b7c0a8053234fee1a23b"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "7c03180aa5aafcaecedf8171fe70d339cd165a8e", [tag: "0.2"]},
   "uuid": {:hex, :uuid, "1.1.3"}}

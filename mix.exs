@@ -5,8 +5,8 @@ defmodule Relay.Mixfile do
 
   def project do
     [app: :relay,
-     version: "0.0.1",
-     elixir: "~> 1.1",
+     version: "0.2.0",
+     elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      erlc_paths: ["lib/relay"],
@@ -42,8 +42,7 @@ defmodule Relay.Mixfile do
   end
 
   defp deps do
-    [{:emqttc, github: "operable/emqttc", ref: "dc36f593822f8e01771a7edc780441fdfb2f7b15"},
-     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend", ref: "457ce74fc242261328f71a77d75252bf0c74c170"},
+    [{:logger_file_backend, github: "onkel-dirtus/logger_file_backend", ref: "457ce74fc242261328f71a77d75252bf0c74c170"},
 
      # Though we do not explicitly use Spanner in Relay, we provide it
      # as a runtime dependency for command bundles.
@@ -57,7 +56,7 @@ defmodule Relay.Mixfile do
      # of bundles).
      #
      # This is also how we get poison and uuid, BTW.
-     {:spanner, git: "git@github.com:operable/spanner", ref: "952dd481ad7f86984254b7c0a8053234fee1a23b"},
+     {:spanner, git: "git@github.com:operable/spanner", tag: "0.2"},
 
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
