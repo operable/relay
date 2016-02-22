@@ -18,5 +18,5 @@
   "piper": {:git, "git@github.com:operable/piper", "acfb2150a25004a5ab2a80e7a5bfd418f35ea532", [tag: "0.2"]},
   "poison": {:hex, :poison, "1.5.2"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "git@github.com:operable/spanner", "7c03180aa5aafcaecedf8171fe70d339cd165a8e", [tag: "0.2"]},
+  "spanner": {:git, "git@github.com:operable/spanner", "4dc3bd344bc7cd8e82344b2ec77a6a12a91b16f3", [tag: "0.2"]},
   "uuid": {:hex, :uuid, "1.1.3"}}
