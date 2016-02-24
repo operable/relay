@@ -56,7 +56,7 @@ defmodule Relay.Mixfile do
      # of bundles).
      #
      # This is also how we get poison and uuid, BTW.
-     {:spanner, git: "git@github.com:operable/spanner", tag: "0.2"},
+     {:spanner, github: "operable/spanner", tag: "0.2"},
 
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before

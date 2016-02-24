@@ -1,26 +1,16 @@
-FROM operable/debian-base
+FROM operable/docker-base
 
-# TODO: Remove temporary SSH hack when the repositories are publicly available.
+# Setup Mix Environment to use. We declare the MIX_ENV at build time
+ARG MIX_ENV
+ENV MIX_ENV ${MIX_ENV:-dev}
 
-USER root
-COPY operable-readonly.pem /home/operable/.ssh/id_rsa
-RUN chmod 0400 /home/operable/.ssh/id_rsa
-RUN chown -R operable:operable /home/operable/.ssh
-USER operable
-
-# Setup Relay
-ENV MIX_ENV prod
-RUN mkdir -p /app
-WORKDIR /app
-
-COPY mix.exs mix.lock /app/
-COPY config /app/config/
+# Setup Cog
+COPY mix.exs mix.lock /home/operable/
+RUN mkdir /home/operable/config
+COPY config/helpers.exs /home/operable/config/
 RUN mix deps.get && mix deps.compile
 
-COPY . /app/
+COPY . /home/operable/
 
 RUN mix clean && mix compile
-RUN rm -f /app/.dockerignore
-
-# TODO: Remove!
-RUN rm -f /home/operable/.ssh/id_rsa
+RUN rm -f /home/operable/.dockerignore
