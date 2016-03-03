@@ -54,7 +54,7 @@ goon is available from the following sources:
 
   defp verify_smp() do
     if :erlang.system_info(:schedulers_online) < 2 do
-      {:error, "SMP support disabled. Add '-smp enable' to $ERL_OPTS and restart Relay."}
+      {:error, "SMP support disabled. Add '-smp enable' to $ERL_FLAGS and restart Relay."}
     else
       {:ok, "SMP support enabled."}
     end
