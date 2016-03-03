@@ -7,7 +7,7 @@ defmodule Relay do
 
   def start(_, _) do
     goon_check()
-    sanity_check()
+    sanity_check_vm()
     case Relay.TopSupervisor.start_link() do
       {:ok, pid} ->
         {:ok, pid}
@@ -32,7 +32,7 @@ goon is available from the following sources:
     end
   end
 
-  defp sanity_check() do
+  defp sanity_check_vm() do
     {smp_status, smp_message} = verify_smp()
     {ds_status, ds_message} = verify_dirty_schedulers()
     if smp_status == :ok do
@@ -45,7 +45,7 @@ goon is available from the following sources:
     else
       Logger.error(ds_message)
     end
-    unless smp_status == :ok and ds_status == :ok do
+    if smp_status == :error or ds_status == :error do
       Logger.error("Application start aborted.")
       Logger.flush()
       :init.stop()
@@ -54,7 +54,13 @@ goon is available from the following sources:
 
   defp verify_smp() do
     if :erlang.system_info(:schedulers_online) < 2 do
-      {:error, "SMP support disabled. Add '-smp enable' to $ERL_FLAGS and restart Relay."}
+      {:error, """
+SMP support disabled.
+SMP support can be enabled via one of the following:
+
+  1. Add '--erl "-smp enable"' to the Elixir args in Relay's launch script.
+  2. Add '-smp enable" to the $ERL_FLAGS environment variable.
+"""}
     else
       {:ok, "SMP support enabled."}
     end
