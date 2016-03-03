@@ -7,6 +7,7 @@ defmodule Relay do
 
   def start(_, _) do
     goon_check()
+    sanity_check_vm()
     case Relay.TopSupervisor.start_link() do
       {:ok, pid} ->
         {:ok, pid}
@@ -28,6 +29,53 @@ goon is available from the following sources:
 """)
       path ->
         Logger.info("'goon' executable found: #{path}.")
+    end
+  end
+
+  defp sanity_check_vm() do
+    {smp_status, smp_message} = verify_smp()
+    {ds_status, ds_message} = verify_dirty_schedulers()
+    if smp_status == :ok do
+      Logger.info(smp_message)
+    else
+      Logger.error(smp_message)
+    end
+    if ds_status == :ok do
+      Logger.info(ds_message)
+    else
+      Logger.error(ds_message)
+    end
+    if smp_status == :error or ds_status == :error do
+      Logger.error("Application start aborted.")
+      Logger.flush()
+      :init.stop()
+    end
+  end
+
+  defp verify_smp() do
+    if :erlang.system_info(:schedulers_online) < 2 do
+      {:error, """
+SMP support disabled.
+SMP support can be enabled via one of the following:
+
+  1. Add '--erl "-smp enable"' to the Elixir args in Relay's launch script.
+  2. Add '-smp enable" to the $ERL_FLAGS environment variable.
+"""}
+    else
+      {:ok, "SMP support enabled."}
+    end
+  end
+
+  defp verify_dirty_schedulers() do
+    try do
+      :erlang.system_info(:dirty_cpu_schedulers)
+      {:ok, "Dirty CPU schedulers enabled."}
+    rescue
+      ArgumentError ->
+        {:error, """
+Erlang VM is missing support for dirty CPU schedulers.
+See http://erlang.org/doc/installation_guide/INSTALL.html for information on enabling dirty scheduler support.
+"""}
     end
   end
 
