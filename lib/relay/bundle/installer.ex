@@ -63,7 +63,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_install(bundle_path) do
-    if String.ends_with?(bundle_path, ".json.locked") do
+    if String.ends_with?(bundle_path, ".yml.locked") do
       try_simple_install(bundle_path)
     else
       try_full_install(bundle_path)
@@ -71,6 +71,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_simple_install(bundle_path) do
+    IO.inspect {"BUNDLE PATH", bundle_path}
     case File.read(bundle_path) do
       {:ok, contents} ->
         case Poison.decode(contents) do
@@ -93,7 +94,7 @@ defmodule Relay.Bundle.Installer do
           {:ok, config} ->
             activate_bundle(bf, config)
           _ ->
-            Logger.error("Unable to open config.json for bundle #{bf.path}. Corrupted archive or bad JSON?")
+            Logger.error("Unable to open config.yml for bundle #{bf.path}. Corrupted archive or bad YAML?")
             BundleFile.close(bf)
             {:error, nil}
         end
