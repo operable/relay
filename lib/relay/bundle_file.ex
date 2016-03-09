@@ -2,7 +2,7 @@ defmodule Relay.BundleFile do
 
   @moduledoc """
 This module models a command bundle file. It provides functions for
-extracting `config.json` and `manifest.json`, validating bundle file
+extracting `config.yml` and `manifest.json`, validating bundle file
 structure, unlocking and expanding bundle files on disk.
   """
 
@@ -48,7 +48,7 @@ structure, unlocking and expanding bundle files on disk.
     end
   end
 
-  @doc "Extracts and parses `manifest.json`."
+  @doc "Extracts and parses manifest file."
   @spec manifest(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def manifest(%__MODULE__{fd: fd, name: name}) do
     path = zip_path(name, "manifest.json")
@@ -56,12 +56,17 @@ structure, unlocking and expanding bundle files on disk.
     Poison.decode(result)
   end
 
-  @doc "Extracts and parses `config.json`."
+  @doc "Extracts and parses config file."
   @spec config(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def config(%__MODULE__{fd: fd, name: name}) do
-    path = zip_path(name, "config.json")
+    path = zip_path(name, "config.yml")
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
-    Poison.decode(result)
+    case YamlElixir.read_from_string(result) do
+      map when is_map(map) ->
+        {:ok, map}
+      _ ->
+        {:error, :invalid_yml}
+    end
   end
 
   @doc "Returns bundle's lock status."

@@ -20,6 +20,7 @@ defmodule Relay.Mixfile do
     [applications: [:crypto,
                     :logger,
                     :logger_file_backend,
+                    :yaml_elixir,
                     :spanner] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
@@ -56,7 +57,11 @@ defmodule Relay.Mixfile do
      # of bundles).
      #
      # This is also how we get poison and uuid, BTW.
-     {:spanner, github: "operable/spanner", tag: "0.2"},
+     {:spanner, github: "operable/spanner", ref: "68c78211f9e7e9303e6e9158275a5524f950805e"},
+
+     # For yaml parsing. yaml_elixir is a wrapper around yamerl which is a native erlang lib.
+     {:yaml_elixir, "~> 1.0.0"},
+     {:yamerl, github: "yakaz/yamerl"},
 
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
