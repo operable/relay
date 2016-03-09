@@ -63,7 +63,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_install(bundle_path) do
-    if String.ends_with?(bundle_path, ".yml.locked") do
+    if String.ends_with?(bundle_path, "#{Spanner.skinny_bundle_extension()}.locked") do
       try_simple_install(bundle_path)
     else
       try_full_install(bundle_path)
@@ -71,18 +71,11 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_simple_install(bundle_path) do
-    IO.inspect {"BUNDLE PATH", bundle_path}
-    case File.read(bundle_path) do
-      {:ok, contents} ->
-        case Poison.decode(contents) do
-          {:ok, config} ->
-            activate_bundle(bundle_path, config)
-          error ->
-            Logger.error("Error parsing JSON bundle config #{bundle_path}: #{inspect error}")
-            {:error, bundle_path}
-        end
-      error ->
-        Logger.error("Error reading bundle config #{bundle_path}: #{inspect error}")
+    case YamlElixir.read_from_file(bundle_path) do
+      %{}=config ->
+        activate_bundle(bundle_path, config)
+      _ ->
+        Logger.error("Error parsing YAML bundle config #{bundle_path}")
         {:error, bundle_path}
     end
   end
@@ -94,7 +87,7 @@ defmodule Relay.Bundle.Installer do
           {:ok, config} ->
             activate_bundle(bf, config)
           _ ->
-            Logger.error("Unable to open config.yml for bundle #{bf.path}. Corrupted archive or bad YAML?")
+            Logger.error("Unable to open config#{Spanner.skinny_bundle_extension()} for bundle #{bf.path}. Corrupted archive or bad YAML?")
             BundleFile.close(bf)
             {:error, nil}
         end
@@ -128,9 +121,9 @@ defmodule Relay.Bundle.Installer do
         end
       {:error, {error_type, _, message}} ->
         if BundleFile.bundle_file?(bf) do
-          Logger.error("config.json for bundle #{bf.path} failed validation: #{error_type} #{message}")
+          Logger.error("config#{Spanner.skinny_bundle_extension()} for bundle #{bf.path} failed validation: #{error_type} #{message}")
         else
-          Logger.error("config.json for bundle #{bf} failed validation: #{error_type} #{message}")
+          Logger.error("config#{Spanner.skinny_bundle_extension()} for bundle #{bf} failed validation: #{error_type} #{message}")
         end
         {:error, bf}
     end
@@ -417,7 +410,7 @@ defmodule Relay.Bundle.Installer do
 
   defp build_install_dest(bundle_root, config, simple? \\ false) do
     ext = if simple? do
-      ".json"
+      Spanner.skinny_bundle_extension()
     else
       ""
     end
