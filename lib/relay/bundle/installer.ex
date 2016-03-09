@@ -72,7 +72,7 @@ defmodule Relay.Bundle.Installer do
 
   defp try_simple_install(bundle_path) do
     case YamlElixir.read_from_file(bundle_path) do
-      %{}=config ->
+      config when is_map(config) ->
         activate_bundle(bundle_path, config)
       _ ->
         Logger.error("Error parsing YAML bundle config #{bundle_path}")

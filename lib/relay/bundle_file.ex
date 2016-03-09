@@ -62,7 +62,7 @@ structure, unlocking and expanding bundle files on disk.
     path = zip_path(name, "config.yml")
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
     case YamlElixir.read_from_string(result) do
-      %{}=map ->
+      map when is_map(map) ->
         {:ok, map}
       _ ->
         {:error, :invalid_yml}
