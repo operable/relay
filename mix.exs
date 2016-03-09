@@ -20,6 +20,7 @@ defmodule Relay.Mixfile do
     [applications: [:crypto,
                     :logger,
                     :logger_file_backend,
+                    :yaml_elixir,
                     :spanner] |> maybe_add_test_apps,
      mod: {Relay, []}]
   end
@@ -66,7 +67,9 @@ defmodule Relay.Mixfile do
 
      {:earmark, "~> 0.2.1", only: :dev},
      {:ex_doc, "~> 0.11.4", only: :dev},
-     {:mix_test_watch, "~> 0.2.5", only: :dev}]
+     {:mix_test_watch, "~> 0.2.5", only: :dev},
+     {:yaml_elixir, "~> 1.0.0"},
+     {:yamerl, github: "yakaz/yamerl"}]
   end
 
   defp docs do
