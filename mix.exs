@@ -59,6 +59,10 @@ defmodule Relay.Mixfile do
      # This is also how we get poison and uuid, BTW.
      {:spanner, github: "operable/spanner", ref: "68c78211f9e7e9303e6e9158275a5524f950805e"},
 
+     # For yaml parsing. yaml_elixir is a wrapper around yamerl which is a native erlang lib.
+     {:yaml_elixir, "~> 1.0.0"},
+     {:yamerl, github: "yakaz/yamerl"},
+
      # Same as Cog uses, and only for test, as a way to get around
      # Mix's annoying habit of starting up the application before
      # running ExUnit; Relay will not start unless there is a message
@@ -67,9 +71,7 @@ defmodule Relay.Mixfile do
 
      {:earmark, "~> 0.2.1", only: :dev},
      {:ex_doc, "~> 0.11.4", only: :dev},
-     {:mix_test_watch, "~> 0.2.5", only: :dev},
-     {:yaml_elixir, "~> 1.0.0"},
-     {:yamerl, github: "yakaz/yamerl"}]
+     {:mix_test_watch, "~> 0.2.5", only: :dev}]
   end
 
   defp docs do
