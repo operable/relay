@@ -71,11 +71,11 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_simple_install(bundle_path) do
-    case YamlElixir.read_from_file(bundle_path) do
-      config when is_map(config) ->
+    case Spanner.Config.Parser.read_from_file(bundle_path) do
+      {:ok, config} ->
         activate_bundle(bundle_path, config)
-      _ ->
-        Logger.error("Error parsing YAML bundle config #{bundle_path}")
+      {:error, errors} ->
+        Logger.error("Error parsing bundle config #{bundle_path} - #{Enum.join(errors, ", ")}")
         {:error, bundle_path}
     end
   end
@@ -87,7 +87,7 @@ defmodule Relay.Bundle.Installer do
           {:ok, config} ->
             activate_bundle(bf, config)
           _ ->
-            Logger.error("Unable to open config#{Spanner.skinny_bundle_extension()} for bundle #{bf.path}. Corrupted archive or bad YAML?")
+            Logger.error("Unable to open #{Spanner.Config.file_name()} for bundle #{bf.path}. Corrupted archive or bad YAML?")
             BundleFile.close(bf)
             {:error, nil}
         end
@@ -121,9 +121,9 @@ defmodule Relay.Bundle.Installer do
         end
       {:error, {error_type, _, message}} ->
         if BundleFile.bundle_file?(bf) do
-          Logger.error("config#{Spanner.skinny_bundle_extension()} for bundle #{bf.path} failed validation: #{error_type} #{message}")
+          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf.path} failed validation: #{error_type} #{message}")
         else
-          Logger.error("config#{Spanner.skinny_bundle_extension()} for bundle #{bf} failed validation: #{error_type} #{message}")
+          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf} failed validation: #{error_type} #{message}")
         end
         {:error, bf}
     end
