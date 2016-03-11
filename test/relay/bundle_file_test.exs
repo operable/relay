@@ -21,13 +21,13 @@ defmodule Relay.BundleFileTest do
   defp statistics(files) do
     beam_count = count_files_with_suffix(files, ".beam")
     json_count = count_files_with_suffix(files, ".json")
-    yml_count = count_files_with_suffix(files, ".yml")
+    yaml_count = count_files_with_suffix(files, ".yaml")
     everything_else = files
     |> Enum.filter(fn(file) -> not(String.ends_with?(file, ".beam") or
                                    String.ends_with?(file, ".json") or
-                                   String.ends_with?(file, ".yml")) end)
+                                   String.ends_with?(file, ".yaml")) end)
     |> length
-    %{beam: beam_count, json: json_count, yml: yml_count, misc: everything_else,
+    %{beam: beam_count, json: json_count, yaml: yaml_count, misc: everything_else,
       total: length(files)}
   end
 
@@ -61,7 +61,7 @@ defmodule Relay.BundleFileTest do
     assert stats.total == 106
     assert stats.beam == 104
     assert stats.json == 1
-    assert stats.yml == 1
+    assert stats.yaml == 1
     assert stats.misc == 0
     assert BundleFile.close(bf) == :ok
   end
