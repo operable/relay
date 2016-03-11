@@ -61,12 +61,7 @@ structure, unlocking and expanding bundle files on disk.
   def config(%__MODULE__{fd: fd, name: name}) do
     path = zip_path(name, "config.yml")
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
-    case YamlElixir.read_from_string(result) do
-      map when is_map(map) ->
-        {:ok, map}
-      _ ->
-        {:error, :invalid_yml}
-    end
+    Spanner.Config.Parser.read_from_string(result)
   end
 
   @doc "Returns bundle's lock status."

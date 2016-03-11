@@ -86,8 +86,8 @@ defmodule Relay.Bundle.Installer do
         case BundleFile.config(bf) do
           {:ok, config} ->
             activate_bundle(bf, config)
-          _ ->
-            Logger.error("Unable to open #{Spanner.Config.file_name()} for bundle #{bf.path}. Corrupted archive or bad YAML?")
+          {:error, errors} ->
+            Logger.error("Unable to open #{Spanner.Config.file_name()} for bundle #{bf.path}. #{Enum.join(errors, ", ")}")
             BundleFile.close(bf)
             {:error, nil}
         end
