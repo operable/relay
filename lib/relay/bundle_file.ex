@@ -2,7 +2,7 @@ defmodule Relay.BundleFile do
 
   @moduledoc """
 This module models a command bundle file. It provides functions for
-extracting `config.yml` and `manifest.json`, validating bundle file
+extracting `#{Spanner.Config.file_name()}` and `manifest.json`, validating bundle file
 structure, unlocking and expanding bundle files on disk.
   """
 
@@ -59,7 +59,7 @@ structure, unlocking and expanding bundle files on disk.
   @doc "Extracts and parses config file."
   @spec config(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
   def config(%__MODULE__{fd: fd, name: name}) do
-    path = zip_path(name, "config.yml")
+    path = zip_path(name, Spanner.Config.file_name())
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
     Spanner.Config.Parser.read_from_string(result)
   end
