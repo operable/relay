@@ -7,7 +7,6 @@ defmodule Relay.Bundle.Installer do
   alias Relay.Bundle.Scanner
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
-  alias Spanner.Bundle.ConfigValidator
   import Relay.Bundle.InstallHelpers, only: [run_script: 2]
 
   defstruct [:bundle_path]
@@ -78,8 +77,8 @@ defmodule Relay.Bundle.Installer do
         Logger.error("Error parsing bundle config #{bundle_path} - #{Enum.join(errors, ", ")}")
         {:error, bundle_path}
     end
-  end
 
+  end
   defp try_full_install(bundle_path) do
     case BundleFile.open(bundle_path) do
       {:ok, bf} ->
@@ -98,34 +97,43 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp activate_bundle(bf, config) do
-    case ConfigValidator.validate(config) do
+    case Spanner.Config.validate(config) do
       :ok ->
-        case verify_template_paths(bf, config) do
+        case verify_config_data(bf, config) do
           {:ok, config} ->
-            case verify_executables(bf, config) do
-              {:ok, config} ->
-                verify_install_hook(bf, config)
-              {:error, {:missing_file, command, file}} ->
-                Logger.error("Failed to find executable #{file} for command #{command}")
-                {:error, bf}
-            end
-          {:error, {:missing_file, command, file}} ->
+            verify_install_hook(bf, config)
+          {:error, {:bad_rules, errors}} ->
+            errors = Enum.map_join(errors, "\n", fn({msg, meta}) -> "Error near #{meta}: #{msg}" end)
+            Logger.error("Failed to validate rules: \n#{errors}\n")
+            {:error, bf}
+          {:error, {:missing_executable, command, file}} ->
+            Logger.error("Failed to find executable #{file} for command #{command}")
+            {:error, bf}
+          {:error, {:missing_template, command, file}} ->
             Logger.error("Failed to find template file #{file} for command #{command}")
             {:error, bf}
-          {:error, {:unable_to_open, command, file}} ->
+          {:error, {:unable_to_read_template, command, file}} ->
             Logger.error("Unable to open the template file #{file} for command #{command}")
             {:error, bf}
           {:error, {:unexpected_value, value}} ->
             Logger.error("Illegal template value: #{inspect value}")
             {:error, bf}
         end
-      {:error, {error_type, _, message}} ->
+      {:error, errors} ->
+        errors = Enum.map_join(errors, "\n", fn({msg, meta}) -> "Error near #{meta}: #{msg}" end)
         if BundleFile.bundle_file?(bf) do
-          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf.path} failed validation: #{error_type} #{message}")
+          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf.path} failed validation: \n#{errors}\n")
         else
-          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf} failed validation: #{error_type} #{message}")
+          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf} failed validation: \n#{errors}\n")
         end
         {:error, bf}
+    end
+  end
+
+  defp verify_config_data(bf, config) do
+    with {:ok, config_with_templates} <- verify_template_paths(bf, config),
+         {:ok, config_with_executables} <- verify_executables(bf, config_with_templates) do
+      {:ok, config_with_executables}
     end
   end
 
@@ -380,7 +388,7 @@ defmodule Relay.Bundle.Installer do
     if File.regular?(executable) do
       verify_executables(bf, config, t, [cmd|accum])
     else
-      {:error, {:missing_file, cmd["name"], executable}}
+      {:error, {:missing_executable, cmd["name"], executable}}
     end
   end
   defp verify_executables(bf, config, [cmd|t], accum) do
@@ -390,7 +398,7 @@ defmodule Relay.Bundle.Installer do
     else
       case BundleFile.find_file(bf, executable) do
         nil ->
-          {:error, {:missing_file, cmd["name"], executable}}
+          {:error, {:missing_executable, cmd["name"], executable}}
         updated ->
           cmd = Map.put(cmd, "executable", updated)
           verify_executables(bf, config, t, [cmd|accum])
@@ -444,10 +452,10 @@ defmodule Relay.Bundle.Installer do
           File.close(fd)
           :ok
         _error ->
-          {:error, {:unable_to_read, file_path}}
+          {:error, {:unable_to_read_template, file_path}}
       end
     else
-      {:error, {:missing_file, file_path}}
+      {:error, {:missing_template, file_path}}
     end
   end
 
