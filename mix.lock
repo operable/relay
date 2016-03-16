@@ -1,5 +1,5 @@
 %{"adz": {:git, "https://github.com/operable/adz.git", "601ceb3a19716ea635a7cd83c05f5593f5cf6c40", [tag: "0.2"]},
-  "carrier": {:git, "https://github.com/operable/carrier.git", "41a868cc01d1a1625354c7b56b76f6a814bbfae4", [ref: "41a868cc01d1a1625354c7b56b76f6a814bbfae4"]},
+  "carrier": {:git, "https://github.com/operable/carrier.git", "b62433b3c8f2c97d9720675fd6f44cb1bb2808f3", [ref: "b62433b3c8f2c97d9720675fd6f44cb1bb2808f3"]},
   "earmark": {:hex, :earmark, "0.2.1"},
   "emqttc": {:git, "https://github.com/operable/emqttc.git", "dc36f593822f8e01771a7edc780441fdfb2f7b15", [tag: "cog-0.2"]},
   "emqttd": {:git, "https://github.com/operable/emqttd.git", "e99446c927299ced7d93437f94c18e73a9cc0e75", [branch: "tweaks-for-upstream"]},
@@ -19,7 +19,7 @@
   "piper": {:git, "https://github.com/operable/piper.git", "c0f65733209d985d0a25b9372ba4ecc62ea77f7f", [ref: "1eb0069bbdc17fdf0312f9f7b1be6224f16e3e70"]},
   "poison": {:hex, :poison, "1.5.2"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
-  "spanner": {:git, "https://github.com/operable/spanner.git", "5f1315578602041ae780fac50e6d492ee9010a87", [ref: "5f1315578602041ae780fac50e6d492ee9010a87"]},
+  "spanner": {:git, "https://github.com/operable/spanner.git", "1263bf17e1ce7f9514bede6515697ebd7d7272e6", [ref: "1263bf17e1ce7f9514bede6515697ebd7d7272e6"]},
   "uuid": {:hex, :uuid, "1.1.3"},
   "yamerl": {:git, "https://github.com/yakaz/yamerl.git", "ae810a808817d9482b4628ae3e20d746e3729fe0", []},
   "yaml_elixir": {:hex, :yaml_elixir, "1.0.0"}}
