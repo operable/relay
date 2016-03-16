@@ -7,8 +7,6 @@ defmodule Relay.Bundle.Installer do
   alias Relay.Bundle.Scanner
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Runner
-  alias Piper.Permissions.Ast
-  alias Piper.Permissions.Parser
   import Relay.Bundle.InstallHelpers, only: [run_script: 2]
 
   defstruct [:bundle_path]
@@ -99,7 +97,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp activate_bundle(bf, config) do
-    case Spanner.Config.Validator.validate(config) do
+    case Spanner.Config.validate(config) do
       :ok ->
         case verify_config_data(bf, config) do
           {:ok, config} ->
@@ -134,9 +132,8 @@ defmodule Relay.Bundle.Installer do
 
   defp verify_config_data(bf, config) do
     with {:ok, config_with_templates} <- verify_template_paths(bf, config),
-         {:ok, config_with_executables} <- verify_executables(bf, config_with_templates),
-         :ok <- verify_rules(config_with_executables) do
-           verify_install_hook(bf, config_with_executables)
+         {:ok, config_with_executables} <- verify_executables(bf, config_with_templates) do
+      {:ok, config_with_executables}
     end
   end
 
@@ -407,35 +404,6 @@ defmodule Relay.Bundle.Installer do
           verify_executables(bf, config, t, [cmd|accum])
       end
     end
-  end
-
-  defp verify_rules(config) do
-    permission_set = MapSet.new(config["permissions"])
-
-    Enum.with_index(config["rules"])
-    |> Enum.reduce([], fn({rule, index}, acc) ->
-      {:ok, %Ast.Rule{}=expr, rule_perms} = Parser.parse(rule)
-      [bundle, command] = String.split(expr.command, ":", parts: 2)
-
-      if config["bundle"]["name"] != bundle do
-        acc = [{"The bundle name '#{bundle}' does not match the name in the bundle", "#/rules/#{index}"}  | acc]
-      end
-      if not(command) in Enum.map(config["commands"], &Map.fetch!(&1, "name")) do
-        acc = [{"The command '#{expr.command}' is not in the list of commands", "#/rules/#{index}"}  | acc]
-      end
-
-      case MapSet.difference(MapSet.new(rule_perms), permission_set) |> MapSet.to_list do
-        [] ->
-          acc
-        bad_perms ->
-          Enum.map(bad_perms, fn(bad_perm) ->
-            {"The permission '#{bad_perm}' is not in the list of permissions.", "#/rules/#{index}"}
-          end) ++ acc
-      end
-    end)
-    |> (fn ([]) -> :ok
-           (errors) -> {:error, {:bad_rules, errors}}
-        end).()
   end
 
   defp run_install_hook(bf, config) do
