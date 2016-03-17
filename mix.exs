@@ -5,7 +5,7 @@ defmodule Relay.Mixfile do
 
   def project do
     [app: :relay,
-     version: "0.2.0",
+     version: "0.3.0",
      elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
@@ -57,7 +57,7 @@ defmodule Relay.Mixfile do
      # of bundles).
      #
      # This is also how we get poison and uuid, BTW.
-     {:spanner, github: "operable/spanner", branch: "v0.3.0"},
+     {:spanner, github: "operable/spanner", tag: "0.3.0"},
 
      # For yaml parsing. yaml_elixir is a wrapper around yamerl which is a native erlang lib.
      {:yaml_elixir, "~> 1.0.0"},
@@ -67,7 +67,7 @@ defmodule Relay.Mixfile do
      # Mix's annoying habit of starting up the application before
      # running ExUnit; Relay will not start unless there is a message
      # bus to connect to.
-     {:emqttd, github: "operable/emqttd", branch: "tweaks-for-upstream", only: :test},
+     {:emqttd, github: "operable/emqttd", tag: "cog-0.3.0", only: :test},
 
      {:earmark, "~> 0.2.1", only: :dev},
      {:ex_doc, "~> 0.11.4", only: :dev},
