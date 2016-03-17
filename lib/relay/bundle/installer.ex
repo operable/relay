@@ -137,24 +137,25 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  defp verify_template_paths(bf, config) when is_binary(bf) do
-    templates = config["templates"]
-    case verify_simple_templates(templates) do
-      :ok ->
-        {:ok, config}
-      error ->
-        error
-    end
-  end
-  defp verify_template_paths(bf, config) do
-    templates = config["templates"]
-    case verify_normal_templates(templates, bf, []) do
+  defp verify_template_paths(bf, config) when is_map(config) do
+    case Map.fetch(config, "templates") do
       {:ok, templates} ->
-        {:ok, %{config | "templates" => templates}}
-      error ->
-        error
+        case verify_template_paths(bf, templates) do
+          {:ok, verified_templates} ->
+            {:ok, %{config | "templates" => verified_templates}}
+          :ok ->
+            {:ok, config}
+          error ->
+            error
+        end
+      :error ->
+        {:ok, config}
     end
   end
+  defp verify_template_paths(bf, templates) when is_binary(bf) and is_list(templates),
+    do: verify_simple_templates(templates)
+  defp verify_template_paths(bf, templates) when is_list(templates),
+    do: verify_normal_templates(templates, bf, [])
 
   defp verify_normal_templates([], _bf, templates) do
     {:ok, Enum.reverse(templates)}
