@@ -57,7 +57,7 @@ defmodule Relay.Mixfile do
      # of bundles).
      #
      # This is also how we get poison and uuid, BTW.
-     {:spanner, github: "operable/spanner", ref: "895a9966cab02637cace9bdb245bb5308b3fbf79"},
+     {:spanner, github: "operable/spanner", branch: "v0.3.0"},
 
      # For yaml parsing. yaml_elixir is a wrapper around yamerl which is a native erlang lib.
      {:yaml_elixir, "~> 1.0.0"},
