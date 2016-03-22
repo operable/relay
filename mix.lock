@@ -16,7 +16,7 @@
   "logger_file_backend": {:git, "https://github.com/onkel-dirtus/logger_file_backend.git", "457ce74fc242261328f71a77d75252bf0c74c170", [ref: "457ce74fc242261328f71a77d75252bf0c74c170"]},
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.6"},
   "mochiweb": {:git, "git://github.com/emqtt/mochiweb.git", "f1ce26fe373b2a9b52b0b1a5d2306ebb225af7bd", [branch: "master"]},
-  "piper": {:git, "https://github.com/operable/piper.git", "c0f65733209d985d0a25b9372ba4ecc62ea77f7f", [ref: "1eb0069bbdc17fdf0312f9f7b1be6224f16e3e70"]},
+  "piper": {:git, "https://github.com/operable/piper.git", "d472fe46d598f250828c0850fc073aca4db01b54", [tag: "0.3.0"]},
   "poison": {:hex, :poison, "1.5.2"},
   "porcelain": {:hex, :porcelain, "2.0.1"},
   "spanner": {:git, "https://github.com/operable/spanner.git", "4c0a59daddd51b93abc1b891cfc0876f296e8c1b", [ref: "4c0a59daddd51b93abc1b891cfc0876f296e8c1b"]},
