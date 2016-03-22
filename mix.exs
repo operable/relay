@@ -5,7 +5,7 @@ defmodule Relay.Mixfile do
 
   def project do
     [app: :relay,
-     version: "0.3.0",
+     version: "0.3.1",
      elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
@@ -57,7 +57,7 @@ defmodule Relay.Mixfile do
      # of bundles).
      #
      # This is also how we get poison and uuid, BTW.
-     {:spanner, github: "operable/spanner", tag: "0.3.0"},
+     {:spanner, github: "operable/spanner", tag: "0.3.1"},
 
      # For yaml parsing. yaml_elixir is a wrapper around yamerl which is a native erlang lib.
      {:yaml_elixir, "~> 1.0.0"},
