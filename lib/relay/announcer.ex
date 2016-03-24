@@ -12,11 +12,7 @@ defmodule Relay.Announcer do
   bundles a Relay is currently serving.
 
   When the Announcer comes up, it first "introduces" itself to the Cog
-  bot by sending its public key; this is the key with which all future
-  messages from this Relay will be signed, and by which Cog will
-  authenticate those messages. The bot, in turn, will send the
-  Announcer _its_ public key, with which the Relay will authenticate
-  all messages coming from the bot.
+  bot. The bot, in turn, will send a response to the relay.
 
   With the introduction handshake out of the way, the Announcer will
   send a "snapshot" announcement to the bot. This is a single message
@@ -255,7 +251,9 @@ defmodule Relay.Announcer do
     # messages should leave us in whatever state we're currently in.
 
     case Poison.decode(message) do
-      {:ok, %{"announcement_id" => id, "status" => status, "bundles" => failed_bundles}} ->
+      {:ok, %{"announcement_id" => id,
+              "status" => status,
+              "bundles" => failed_bundles}} ->
         if status == "failed", do: Triage.remove_bundles(failed_bundles)
         if currently_in_flight?(loop_data, id) do
           loop_data = mark_as_acknowledged(loop_data, id)
@@ -273,8 +271,8 @@ defmodule Relay.Announcer do
     # We don't use CredentialManager.verify_signed_message/1 here
     # because we're waiting for the key from the bot!
     case Poison.decode!(message) do
-      %{"data" => %{"intro" => %{"id" => id,
-                                 "role" => "bot"}}} ->
+      %{"intro" => %{"id" => id,
+                     "role" => "bot"}} ->
         Logger.info("Registering #{id} with CredentialManager")
 
         creds = %Credentials{id: id}
