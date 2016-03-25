@@ -12,11 +12,7 @@ defmodule Relay.Announcer do
   bundles a Relay is currently serving.
 
   When the Announcer comes up, it first "introduces" itself to the Cog
-  bot by sending its public key; this is the key with which all future
-  messages from this Relay will be signed, and by which Cog will
-  authenticate those messages. The bot, in turn, will send the
-  Announcer _its_ public key, with which the Relay will authenticate
-  all messages coming from the bot.
+  bot. The bot, in turn, will send a response to the relay.
 
   With the introduction handshake out of the way, the Announcer will
   send a "snapshot" announcement to the bot. This is a single message
@@ -118,7 +114,6 @@ defmodule Relay.Announcer do
   alias Carrier.CredentialManager
   alias Carrier.Credentials
   alias Carrier.Messaging.Connection
-  alias Carrier.Signature
   alias Relay.Bundle.Catalog
   alias Relay.Bundle.Triage
 
@@ -255,8 +250,10 @@ defmodule Relay.Announcer do
     # successful receipt transitions us to :announcing. Unexpected
     # messages should leave us in whatever state we're currently in.
 
-    case CredentialManager.verify_signed_message(message) do
-      {true, %{"announcement_id" => id, "status" => status, "bundles" => failed_bundles}} ->
+    case Poison.decode(message) do
+      {:ok, %{"announcement_id" => id,
+              "status" => status,
+              "bundles" => failed_bundles}} ->
         if status == "failed", do: Triage.remove_bundles(failed_bundles)
         if currently_in_flight?(loop_data, id) do
           loop_data = mark_as_acknowledged(loop_data, id)
@@ -265,11 +262,8 @@ defmodule Relay.Announcer do
           Logger.warn("Acknowledged announcement with ID #{inspect id}, but no record of such an announcement exists; perhaps Relay restarted?")
           {:next_state, state, loop_data}
         end
-      {true, other} ->
+      {:ok, other} ->
         Logger.warn("Got unexpected message in state #{state}: #{inspect other}")
-        {:next_state, state, loop_data}
-      false ->
-        Logger.warn("Failed message verification in state #{state} for message #{inspect message}")
         {:next_state, state, loop_data}
     end
   end
@@ -277,12 +271,11 @@ defmodule Relay.Announcer do
     # We don't use CredentialManager.verify_signed_message/1 here
     # because we're waiting for the key from the bot!
     case Poison.decode!(message) do
-      %{"data" => %{"intro" => %{"id" => id,
-                                 "role" => "bot",
-                                 "public_key" => public_key}}} ->
-        Logger.info("Received bot key #{inspect public_key}; registering with CredentialManager")
+      %{"intro" => %{"id" => id,
+                     "role" => "bot"}} ->
+        Logger.info("Registering #{id} with CredentialManager")
 
-        creds = %Credentials{id: id, public: Base.decode16!(public_key, case: :lower)}
+        creds = %Credentials{id: id}
         case CredentialManager.store(creds) do
           :ok ->
             Logger.info("Stored Cog bot public key: #{creds.id}")
@@ -440,7 +433,6 @@ defmodule Relay.Announcer do
   defp introduction(topic) do
     {:ok, creds} = CredentialManager.get
     %{intro: %{relay: creds.id,
-               public_key: Base.encode16(creds.public, case: :lower),
                reply_to: topic}}
   end
 
@@ -459,14 +451,12 @@ defmodule Relay.Announcer do
                   bundles: [],
                   snapshot: true}}
 
-    signed_payload = creds
-    |> Signature.sign(message)
-    |> Poison.encode!
+    payload = Poison.encode!(message)
 
     [topic: @relays_discovery_topic,
      qos: 1,
      retain: false,
-     payload: signed_payload]
+     payload: payload]
   end
 
   # Basic infrastructure for checking loop_data invariants at state
