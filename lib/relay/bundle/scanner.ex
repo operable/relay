@@ -125,8 +125,12 @@ defmodule Relay.Bundle.Scanner do
 
   defp pending_bundle_files() do
     pending_path = Application.get_env(:relay, :pending_bundle_root)
+    # Generates a string like '{"*.yaml", "*.yml", "*.json"}' which is used with
+    # Path.wildcard/2 to search for multiple file types
+    skinny_bundles = "{#{Enum.map_join(Spanner.skinny_bundle_extensions, ",", &("*#{&1}"))}}"
+
     Path.wildcard(Path.join(pending_path, "*#{Spanner.bundle_extension()}")) ++
-        Path.wildcard(Path.join(pending_path, "*#{Spanner.skinny_bundle_extension()}"))
+        Path.wildcard(Path.join(pending_path, skinny_bundles))
   end
 
   defp guess_bundle_name(path) do

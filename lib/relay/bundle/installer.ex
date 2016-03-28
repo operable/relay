@@ -61,11 +61,13 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  defp try_install(bundle_path) do
-    if String.ends_with?(bundle_path, "#{Spanner.skinny_bundle_extension()}.locked") do
-      try_simple_install(bundle_path)
-    else
-      try_full_install(bundle_path)
+  defp try_install(locked_path) do
+    bundle_path = String.replace_trailing(locked_path, ".locked", "")
+    case Spanner.bundle_type(bundle_path) do
+      :simple ->
+        try_simple_install(locked_path)
+      :standard ->
+        try_full_install(locked_path)
     end
   end
 
