@@ -58,8 +58,8 @@ structure, unlocking and expanding bundle files on disk.
 
   @doc "Extracts and parses config file."
   @spec config(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
-  def config(%__MODULE__{fd: fd, name: name}) do
-    path = zip_path(name, Spanner.Config.file_name())
+  def config(%__MODULE__{fd: fd}) do
+    path = get_config_file_path(fd)
     {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
     Spanner.Config.Parser.read_from_string(result)
   end
@@ -228,8 +228,29 @@ second argument.
     Enum.join([name, file], "/")
   end
 
+  defp get_config_file_path(fd) do
+    case :zip.zip_list_dir(fd) do
+      {:ok, list} ->
+        Enum.find_value(list, fn
+          ({:zip_file, filename, _, _, _, _}) ->
+            if Spanner.Config.config_file?(str(filename)) do
+              str(filename)
+            else
+              false
+            end
+          (_) -> false
+        end)
+      error ->
+        error
+    end
+  end
+
   defp cl(s) when is_binary(s) do
     String.to_char_list(s)
+  end
+
+  defp str(c) when is_list(c) do
+    String.Chars.to_string(c)
   end
 
   defp zip_dir_path(zf, :regular) do
