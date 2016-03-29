@@ -88,7 +88,7 @@ defmodule Relay.Bundle.Installer do
           {:ok, config} ->
             activate_bundle(bf, config)
           {:error, errors} ->
-            Logger.error("Unable to open #{Spanner.Config.file_name()} for bundle #{bf.path}. #{Enum.join(errors, ", ")}")
+            Logger.error("Unable to open #{bf.config_file} for bundle #{bf.path}. #{Enum.join(errors, ", ")}")
             BundleFile.close(bf)
             {:error, nil}
         end
@@ -124,9 +124,9 @@ defmodule Relay.Bundle.Installer do
       {:error, errors} ->
         errors = Enum.map_join(errors, "\n", fn({msg, meta}) -> "Error near #{meta}: #{msg}" end)
         if BundleFile.bundle_file?(bf) do
-          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf.path} failed validation: \n#{errors}\n")
+          Logger.error("#{bf.config_file} for bundle #{bf.path} failed validation: \n#{errors}\n")
         else
-          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf} failed validation: \n#{errors}\n")
+          Logger.error("#{bf.config_file} for bundle #{bf} failed validation: \n#{errors}\n")
         end
         {:error, bf}
     end
