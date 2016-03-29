@@ -255,7 +255,9 @@ defmodule Relay.Bundle.Installer do
 
   defp expand_bundle(bf, config) when is_binary(bf) do
     bundle_root = Application.get_env(:relay, :bundle_root)
-    install_path = build_install_dest(bundle_root, config, true)
+    bundle_path = String.replace_trailing(bf, ".locked", "")
+    [bundle_ext] = Regex.run(~r(\.[a-zA-Z]*$), bundle_path)
+    install_path = build_install_dest(bundle_root, config, bundle_ext)
     case File.rename(bf, install_path) do
       :ok ->
         register_and_start_bundle(install_path, config)
@@ -419,12 +421,7 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  defp build_install_dest(bundle_root, config, simple? \\ false) do
-    ext = if simple? do
-      Spanner.skinny_bundle_extension()
-    else
-      ""
-    end
+  defp build_install_dest(bundle_root, config, ext \\ "") do
     bundle = config["bundle"]
     name = bundle["name"] <> ext
     Path.join([bundle_root, name])
