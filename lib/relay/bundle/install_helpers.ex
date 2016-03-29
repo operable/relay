@@ -22,10 +22,12 @@ defmodule Relay.Bundle.InstallHelpers do
     run_script(bf.installed_path, script, kind)
   end
   def run_script(installed_path, script, kind) when is_binary(installed_path) do
-    install_dir = if String.ends_with?(installed_path, ".json") or String.ends_with?(installed_path, ".json.locked") do
-      Path.dirname(installed_path)
-    else
-      installed_path
+    bundle_install_path = String.replace_trailing(installed_path, ".locked", "")
+    install_dir = case Spanner.bundle_type(bundle_install_path) do
+      :simple ->
+        Path.dirname(installed_path)
+      :standard ->
+        installed_path
     end
     {script, rest} = case String.split(script, " ") do
                        [^script] ->
@@ -148,7 +150,7 @@ defmodule Relay.Bundle.InstallHelpers do
       nil ->
         {:error, {:not_installed, bundle_name}}
       installed_path ->
-        if String.ends_with?(installed_path, Spanner.skinny_bundle_extension) do
+        if Spanner.skinny_bundle?(installed_path) do
           {:ok, installed_path, nil}
         else
           installed_bundle_file = installed_path <> Spanner.bundle_extension
