@@ -62,7 +62,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_install(locked_path) do
-    bundle_path = String.replace_trailing(locked_path, ".locked", "")
+    bundle_path = Path.basename(bf, ".locked")
     case Spanner.bundle_type(bundle_path) do
       :simple ->
         try_simple_install(locked_path)
@@ -255,8 +255,8 @@ defmodule Relay.Bundle.Installer do
 
   defp expand_bundle(bf, config) when is_binary(bf) do
     bundle_root = Application.get_env(:relay, :bundle_root)
-    bundle_path = String.replace_trailing(bf, ".locked", "")
-    [bundle_ext] = Regex.run(~r(\.[a-zA-Z]*$), bundle_path)
+    bundle_path = Path.basename(bf, ".locked")
+    bundle_ext = Path.extname(bundle_path)
     install_path = build_install_dest(bundle_root, config, bundle_ext)
     case File.rename(bf, install_path) do
       :ok ->
