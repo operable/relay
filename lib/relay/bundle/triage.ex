@@ -6,7 +6,7 @@ defmodule Relay.Bundle.Triage do
   @doc"This function moves up a potential bundle from the pending directory to the failed directory
   when it is determined that it is not ready to be transported to Cog."
   def cleanup_failed_install(bundle_name) do
-    bundle_path = Path.basename(bf, ".locked")
+    bundle_path = Path.basename(bundle_name, ".locked")
     if Spanner.skinny_bundle?(bundle_path) do
       cleanup_failed_skinny_bundle(bundle_name)
     else
@@ -98,7 +98,7 @@ defmodule Relay.Bundle.Triage do
   end
 
   defp make_triage_file(triage_root, bundle_name, n) do
-    bundle_path = Path.basename(bf, ".locked")
+    bundle_path = Path.basename(bundle_name, ".locked")
     triage_file = if Spanner.skinny_bundle?(bundle_path) do
       Path.join(triage_root, Path.basename(bundle_name) <> triage_suffix(n))
     else

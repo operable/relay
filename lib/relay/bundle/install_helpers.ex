@@ -22,7 +22,7 @@ defmodule Relay.Bundle.InstallHelpers do
     run_script(bf.installed_path, script, kind)
   end
   def run_script(installed_path, script, kind) when is_binary(installed_path) do
-    bundle_install_path = Path.basename(bf, ".locked")
+    bundle_install_path = Path.basename(installed_path, ".locked")
     install_dir = case Spanner.bundle_type(bundle_install_path) do
       :simple ->
         Path.dirname(installed_path)

@@ -62,7 +62,7 @@ defmodule Relay.Bundle.Installer do
   end
 
   defp try_install(locked_path) do
-    bundle_path = Path.basename(bf, ".locked")
+    bundle_path = Path.basename(locked_path, ".locked")
     case Spanner.bundle_type(bundle_path) do
       :simple ->
         try_simple_install(locked_path)
