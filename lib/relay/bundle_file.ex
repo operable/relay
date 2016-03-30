@@ -2,7 +2,7 @@ defmodule Relay.BundleFile do
 
   @moduledoc """
 This module models a command bundle file. It provides functions for
-extracting `#{Spanner.Config.file_name()}` and `manifest.json`, validating bundle file
+extracting bundle config and the manifest, validating bundle file
 structure, unlocking and expanding bundle files on disk.
   """
 
@@ -11,7 +11,7 @@ structure, unlocking and expanding bundle files on disk.
   Record.defrecord(:file_info, Record.extract(:file_info, from_lib: "kernel/include/file.hrl"))
   Record.defrecord(:zip_file, Record.extract(:zip_file, from_lib: "stdlib/include/zip.hrl"))
 
-  defstruct [:name, :path, :fd, :installed_path, :files]
+  defstruct [:name, :path, :fd, :installed_path, :files, :config_file]
 
   @zip_options [:cooked, :memory]
 
@@ -25,7 +25,7 @@ structure, unlocking and expanding bundle files on disk.
     |> String.replace(Regex.compile!("#{bundle_extension}.locked$"), "")
     case :zip.zip_open(cl(path), @zip_options) do
       {:ok, fd} ->
-        bf = %__MODULE__{path: path, fd: fd, name: name}
+        bf = %__MODULE__{path: path, fd: fd, name: name, config_file: get_config_file_path(fd)}
         {:ok, %{bf | files: list_files(bf)}}
       error ->
         error
@@ -58,9 +58,8 @@ structure, unlocking and expanding bundle files on disk.
 
   @doc "Extracts and parses config file."
   @spec config(%__MODULE__{}) :: {:ok, Map.t()} | {:error, term()}
-  def config(%__MODULE__{fd: fd, name: name}) do
-    path = zip_path(name, Spanner.Config.file_name())
-    {:ok, {_, result}} = :zip.zip_get(cl(path), fd)
+  def config(%__MODULE__{fd: fd, config_file: config_file_path}) do
+    {:ok, {_, result}} = :zip.zip_get(cl(config_file_path), fd)
     Spanner.Config.Parser.read_from_string(result)
   end
 
@@ -228,8 +227,29 @@ second argument.
     Enum.join([name, file], "/")
   end
 
+  defp get_config_file_path(fd) do
+    case :zip.zip_list_dir(fd) do
+      {:ok, list} ->
+        Enum.find_value(list, fn
+          ({:zip_file, filename, _, _, _, _}) ->
+            if Spanner.Config.config_file?(str(filename)) do
+              str(filename)
+            else
+              false
+            end
+          (_) -> false
+        end)
+      error ->
+        error
+    end
+  end
+
   defp cl(s) when is_binary(s) do
     String.to_char_list(s)
+  end
+
+  defp str(c) when is_list(c) do
+    String.Chars.to_string(c)
   end
 
   defp zip_dir_path(zf, :regular) do

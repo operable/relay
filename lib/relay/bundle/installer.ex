@@ -61,11 +61,13 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  defp try_install(bundle_path) do
-    if String.ends_with?(bundle_path, "#{Spanner.skinny_bundle_extension()}.locked") do
-      try_simple_install(bundle_path)
-    else
-      try_full_install(bundle_path)
+  defp try_install(locked_path) do
+    bundle_path = Path.basename(locked_path, ".locked")
+    case Spanner.bundle_type(bundle_path) do
+      :simple ->
+        try_simple_install(locked_path)
+      :standard ->
+        try_full_install(locked_path)
     end
   end
 
@@ -86,7 +88,7 @@ defmodule Relay.Bundle.Installer do
           {:ok, config} ->
             activate_bundle(bf, config)
           {:error, errors} ->
-            Logger.error("Unable to open #{Spanner.Config.file_name()} for bundle #{bf.path}. #{Enum.join(errors, ", ")}")
+            Logger.error("Unable to open #{bf.config_file} for bundle #{bf.path}. #{Enum.join(errors, ", ")}")
             BundleFile.close(bf)
             {:error, nil}
         end
@@ -122,9 +124,9 @@ defmodule Relay.Bundle.Installer do
       {:error, errors} ->
         errors = Enum.map_join(errors, "\n", fn({msg, meta}) -> "Error near #{meta}: #{msg}" end)
         if BundleFile.bundle_file?(bf) do
-          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf.path} failed validation: \n#{errors}\n")
+          Logger.error("#{bf.config_file} for bundle #{bf.path} failed validation: \n#{errors}\n")
         else
-          Logger.error("#{Spanner.Config.file_name()} for bundle #{bf} failed validation: \n#{errors}\n")
+          Logger.error("#{bf.config_file} for bundle #{bf} failed validation: \n#{errors}\n")
         end
         {:error, bf}
     end
@@ -253,7 +255,9 @@ defmodule Relay.Bundle.Installer do
 
   defp expand_bundle(bf, config) when is_binary(bf) do
     bundle_root = Application.get_env(:relay, :bundle_root)
-    install_path = build_install_dest(bundle_root, config, true)
+    bundle_path = Path.basename(bf, ".locked")
+    bundle_ext = Path.extname(bundle_path)
+    install_path = build_install_dest(bundle_root, config, bundle_ext)
     case File.rename(bf, install_path) do
       :ok ->
         register_and_start_bundle(install_path, config)
@@ -417,12 +421,7 @@ defmodule Relay.Bundle.Installer do
     end
   end
 
-  defp build_install_dest(bundle_root, config, simple? \\ false) do
-    ext = if simple? do
-      Spanner.skinny_bundle_extension()
-    else
-      ""
-    end
+  defp build_install_dest(bundle_root, config, ext \\ "") do
     bundle = config["bundle"]
     name = bundle["name"] <> ext
     Path.join([bundle_root, name])

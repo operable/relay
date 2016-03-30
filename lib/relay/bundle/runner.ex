@@ -40,7 +40,7 @@ defmodule Relay.Bundle.Runner do
   Start up a new bundle under this supervisor.
   """
   def start_bundle(name, installed_path) do
-    bundle_dir = if String.ends_with?(installed_path, Spanner.skinny_bundle_extension()) do
+    bundle_dir = if Spanner.skinny_bundle?(installed_path) do
       Path.join("/tmp", name)
     else
       installed_path

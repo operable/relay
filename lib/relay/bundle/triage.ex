@@ -6,7 +6,8 @@ defmodule Relay.Bundle.Triage do
   @doc"This function moves up a potential bundle from the pending directory to the failed directory
   when it is determined that it is not ready to be transported to Cog."
   def cleanup_failed_install(bundle_name) do
-    if String.ends_with?(bundle_name, Spanner.skinny_bundle_extension()) or String.ends_with?(bundle_name, "#{Spanner.skinny_bundle_extension()}.locked") do
+    bundle_path = Path.basename(bundle_name, ".locked")
+    if Spanner.skinny_bundle?(bundle_path) do
       cleanup_failed_skinny_bundle(bundle_name)
     else
       cleanup_failed_bundle(bundle_name)
@@ -97,13 +98,11 @@ defmodule Relay.Bundle.Triage do
   end
 
   defp make_triage_file(triage_root, bundle_name, n) do
-    triage_file = cond do
-      String.ends_with?(bundle_name, Spanner.skinny_bundle_extension()) ->
-        Path.join(triage_root, Path.basename(bundle_name) <> triage_suffix(n))
-      String.ends_with?(bundle_name, "#{Spanner.skinny_bundle_extension()}.locked") ->
-        Path.join(triage_root, Path.basename(bundle_name) <> triage_suffix(n))
-      true ->
-        Path.join(triage_root, bundle_name <> ".cog" <> triage_suffix(n))
+    bundle_path = Path.basename(bundle_name, ".locked")
+    triage_file = if Spanner.skinny_bundle?(bundle_path) do
+      Path.join(triage_root, Path.basename(bundle_name) <> triage_suffix(n))
+    else
+      Path.join(triage_root, bundle_name <> ".cog" <> triage_suffix(n))
     end
     if File.exists?(triage_file) do
       make_triage_file(triage_root, bundle_name, n + 1)
@@ -114,7 +113,7 @@ defmodule Relay.Bundle.Triage do
 
   defp build_bundle_path(root_dir, bundle) do
     bundle = Path.basename(bundle)
-    if String.ends_with?(bundle, Spanner.skinny_bundle_extension()) or String.ends_with?(bundle, ".cog") do
+    if Spanner.skinny_bundle?(bundle) or Spanner.standard_bundle?(bundle) do
       Path.join(root_dir, bundle)
     else
       Path.join(root_dir, bundle <> ".cog")
