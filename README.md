@@ -1,3 +1,5 @@
+**Deprecation NOTICE: This version of relay has been deprecated please use the new go based relay instead https://github.com/operable/go-relay**
+
 # Relay
 
 Relay provides isolated (mostly) and secure execution environments for [Cog's](https://github.com/operable/Cog) ChatOps commands. Relay is programming
